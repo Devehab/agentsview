@@ -140,6 +140,14 @@ evidence; they do not establish whether a tool helped the task.
 
 ## Claude Code (`claude`)
 
+- **Screenshot intake (checked 2026-10-24):** A frozen native-file selection
+  retained JSONL envelopes, message and tool identifiers, subagent
+  transcripts, and companion text files. Decoded-string sanitization followed
+  by ordinary sync into a fresh archive retained thinking, tool-result events,
+  and parent relationships. This is local parser evidence, not a new producer
+  format. The [corpus guide](../screenshots/corpus.md) owns the sanitization
+  procedure.
+
 - **Channel messages (2026-10-23):** Reverified against the synthetic Claude
   Code 2.1.305 Telegram transcript in
   [#2400](https://github.com/kenn-io/agentsview/issues/2400), kept in
@@ -147,6 +155,7 @@ evidence; they do not establish whether a tool helped the task.
   questions are `user` entries with `isMeta: true` and `origin.kind: channel`.
   They remain user turns; other `isMeta` entries stay hidden. Transcript text
   retains the `<channel>` envelope, while session previews show its body.
+
 - **Dialogue projection:** Reverified 2026-10-17 against the shared block parser
   and ingest fixtures. Text blocks retain literal thinking and tool markers;
   separate thinking blocks remain available as reasoning. Cowork, iCodeMate
@@ -154,6 +163,7 @@ evidence; they do not establish whether a tool helped the task.
   extraction. Hosted changes to dialogue derivation alone preserve session
   identity and content revisions. Parser changes to other fields, such as Pi
   reasoning text, still produce a new revision.
+
 - **Launch evidence (2026-10-07):** Claude Code 2.1.293's bundled CLI launch
   initializer records `entrypoint=sdk-cli` for print-mode launches and `cli`
   for interactive terminal launches; SDK libraries use `sdk-py` or `sdk-ts`.
@@ -590,6 +600,15 @@ fixtures retain this field; missing identities remain source-local.
   `internal/parser/cowork_paths.go`, and `internal/parser/cowork_provider.go`.
 
 ## Codex (`codex`)
+
+- **Screenshot intake (checked 2026-10-24):** Ordinary sync accepted sanitized
+  native JSONL with `encrypted_content` explicitly omitted. The local parser's
+  `extractCodexInboundAgentMessage` also accepts plaintext under that field
+  and distinguishes opaque Fernet envelopes. Omitting the field therefore
+  removes readable agent content as well as opaque values; retain the recipe
+  and review that loss when curating a screenshot generation. The corpus
+  procedure does not change the parser or claim complete conversation
+  retention.
 
 - **Dialogue classification (checked 2026-10-22):** The pinned
   [response schema](https://github.com/openai/codex/blob/c71297b9a9b3f7995445eff8d768837814ac06f8/codex-rs/protocol/src/models.rs#L31-L96)
