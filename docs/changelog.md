@@ -11,6 +11,10 @@ The latest release is
 
 **New features**
 
+- Read usage for several sessions in one process with
+  `session usage-batch <id>...`. JSON returns one ordered result per requested
+  ID, including individual errors.
+
 - PostgreSQL and ClickHouse push services can use a separately managed
   collector with `service install --no-start-daemon`, avoiding competing daemons
   and archive write locks during restarts. The push service exits if no writable
