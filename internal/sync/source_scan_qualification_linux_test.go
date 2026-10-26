@@ -65,7 +65,7 @@ func TestSourceScanQualification(t *testing.T) {
 	report.ScannerStats = scanner.stats()
 	probe := count - 1
 	if report.ScannerStats.Saturated {
-		probe = fixture.uncachedSource(scanner)
+		probe = fixture.uncachedSource(scanner, 512) // Keep burst and retention sources.
 		require.GreaterOrEqual(t, probe, 0)
 	}
 	report.ProbeSourceCached = scanner.cached(fixture.paths[probe])
@@ -276,7 +276,7 @@ func TestSourceScanCapacityControl(t *testing.T) {
 	fixture.verify(t, engine.db, count-1, 1, "initial")
 	report.ScannerStats = scanners[0].stats()
 	require.Equal(t, uint64(count), scanners[1].stats().CachedFiles)
-	probe := fixture.uncachedSource(scanners[0])
+	probe := fixture.uncachedSource(scanners[0], 0)
 	require.GreaterOrEqual(t, probe, 0)
 	fixture.append(t, probe, "uncached-change")
 	report.Samples = append(report.Samples, qualifySourceScanCycle(t, "uncached-change", methods[0], sourceScanOverflowAuditPasses, cycle(scanners[0])))
@@ -401,10 +401,11 @@ func newSourceScanQualification(t *testing.T, count int) *sourceScanQualificatio
 	return f
 }
 
-func (f *sourceScanQualificationFixture) uncachedSource(scanner *sourceScanner) int {
+// uncachedSource skips the first reserved sources, which later checks use.
+func (f *sourceScanQualificationFixture) uncachedSource(scanner *sourceScanner, reserved int) int {
 	for i, path := range f.paths {
-		if i < 512 {
-			continue // Keep burst and retention sources available for later checks.
+		if i < reserved {
+			continue
 		}
 		if !scanner.cached(path) {
 			return i

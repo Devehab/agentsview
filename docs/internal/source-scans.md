@@ -28,14 +28,18 @@ let scans continue to other roots while watcher retries remain pending. Missing
 roots defer reconciliation. Providers still supply complete discovery before
 disappearance can affect archive state.
 
-Dangling project links are skipped. An unreadable subtree keeps its cached rows,
-marks the pass incomplete, and does not stop coverage of its siblings.
+An unreadable subtree or a dangling Claude project link keeps its cached rows,
+marks the pass incomplete, and does not stop coverage of its siblings. The
+scanner does not request reconciliation for it, because provider discovery also
+reports an unavailable project as incomplete rather than deleted.
 
 When the cache is full, the scanner cannot compare uncached files. It does not
 resubmit them every pass. Instead, provider reconciliation of the affected scope
 audits them every tenth pass, about every five minutes. Cached files keep
 30-second coverage. Saturation is recomputed each pass; once the collection fits
-again, one final reconciliation covers any uncached deletions.
+again, one final reconciliation covers any uncached deletions. That
+reconciliation is owed from the moment a source is left uncached, even if the
+pass then fails.
 
 Logs report scan duration, files examined, changed paths, retained rows,
 directory bytes, saturation, and cumulative failures. `Watcher.SourceScanStats`

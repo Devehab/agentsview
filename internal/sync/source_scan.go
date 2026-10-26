@@ -84,11 +84,17 @@ type sourceScanRoot struct {
 	plan        WatchRoot
 	initialized bool
 	directories map[string]*sourceScanDirectory
-	// overflowed is set when this pass left a source uncached. auditPending
+	// overflowed is set when this pass left a source uncached. auditPending is
+	// set at the same moment, so a pass that later fails still leaves it, and it
 	// survives until a reconciliation covers every source left uncached.
 	overflowed       bool
 	auditPending     bool
 	passesSinceAudit int
+}
+
+func (r *sourceScanRoot) leaveUncached() {
+	r.overflowed = true
+	r.auditPending = true
 }
 
 type sourceScanner struct {
@@ -274,10 +280,9 @@ func (s *sourceScanner) scanRoot(ctx context.Context, root *sourceScanRoot, emit
 				}
 				isDir := entry.IsDir()
 				if root.plan.FollowChildDirectorySymlinks && directory == root.plan.Path && entry.Type()&os.ModeSymlink != 0 {
+					// A dangling project link is unavailable, not deleted: provider
+					// discovery reports it as incomplete, so its rows stay cached.
 					target, err := os.Stat(path)
-					if errors.Is(err, os.ErrNotExist) {
-						continue // A dangling project link has nothing to cover.
-					}
 					if err != nil {
 						skip(path, err)
 						continue
@@ -326,7 +331,7 @@ func (s *sourceScanner) scanRoot(ctx context.Context, root *sourceScanRoot, emit
 				case observation.index >= 0 && records.rows[observation.index].signature == observation.row.signature:
 				case observation.index < 0 && !s.admits(root, directory):
 					// A full cache cannot compare this source; the overflow audit covers it.
-					root.overflowed = true
+					root.leaveUncached()
 				default:
 					pending = append(pending, observation)
 					if len(pending) == sourceScanPageSize {
@@ -358,9 +363,6 @@ func (s *sourceScanner) scanRoot(ctx context.Context, root *sourceScanRoot, emit
 			missing = true
 			break
 		}
-	}
-	if root.overflowed {
-		root.auditPending = true
 	}
 	root.passesSinceAudit++
 	audit := root.auditPending && (!root.overflowed || root.passesSinceAudit >= sourceScanOverflowAuditPasses)
@@ -442,7 +444,7 @@ func (s *sourceScanner) retain(root *sourceScanRoot, observation sourceScanObser
 		return
 	}
 	if !s.admits(root, observation.directory) {
-		root.overflowed = true
+		root.leaveUncached()
 		return
 	}
 	if records == nil {

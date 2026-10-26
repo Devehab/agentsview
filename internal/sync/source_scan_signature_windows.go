@@ -42,10 +42,15 @@ func sourceScanFileSignature(path string, _ os.DirEntry) (sourceScanSignature, b
 }
 
 // sourceScanLongPath keeps os.Open's long-path support for direct CreateFile
-// calls by using the extended-length prefix on long absolute drive paths.
+// calls by using the extended-length form of long absolute drive and UNC paths.
 func sourceScanLongPath(path string) string {
-	if len(path) < windows.MAX_PATH-12 || !filepath.IsAbs(path) || strings.HasPrefix(path, `\\`) {
+	if len(path) < windows.MAX_PATH-12 || !filepath.IsAbs(path) ||
+		strings.HasPrefix(path, `\\?\`) || strings.HasPrefix(path, `\\.\`) {
 		return path
 	}
-	return `\\?\` + filepath.Clean(path)
+	path = filepath.Clean(path)
+	if unc, ok := strings.CutPrefix(path, `\\`); ok {
+		return `\\?\UNC\` + unc
+	}
+	return `\\?\` + path
 }

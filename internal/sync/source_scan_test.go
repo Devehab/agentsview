@@ -120,11 +120,35 @@ func TestSourceScanOverflowRecoversAfterCollectionShrinks(t *testing.T) {
 	assert.Empty(t, batches, "a collection that fits needs no further overflow audits")
 }
 
+func TestSourceScanAuditsOverflowAfterFailedPass(t *testing.T) {
+	root := t.TempDir()
+	cached := filepath.Join(root, "cached.jsonl")
+	require.NoError(t, os.WriteFile(cached, nil, 0o600))
+	scanner := newSourceScanner([]WatchRoot{{Path: root, SourceFileGlobs: []string{"*.jsonl"}}}, nil)
+	require.NoError(t, scanner.scan(t.Context(), func(context.Context, WatchBatch) error { return nil }))
+	scanner.maxEntries = 1
+	// The first overflowed pass leaves a source uncached, then fails to
+	// dispatch an unrelated change before reaching its end-of-pass audit.
+	uncached := filepath.Join(root, "uncached.jsonl")
+	require.NoError(t, os.WriteFile(uncached, nil, 0o600))
+	require.NoError(t, os.WriteFile(cached, []byte("changed"), 0o600))
+	failure := errors.New("archive unavailable")
+	require.ErrorIs(t, scanner.scan(t.Context(), func(context.Context, WatchBatch) error { return failure }), failure)
+	require.False(t, scanner.cached(uncached))
+	// The uncached source disappears, so the collection fits again.
+	require.NoError(t, os.Remove(uncached))
+	var roots []string
+	require.NoError(t, scanner.scan(t.Context(), func(_ context.Context, batch WatchBatch) error {
+		roots = append(roots, batch.ReconcileRoots...)
+		return nil
+	}))
+	assert.Equal(t, []string{root}, roots, "only provider reconciliation can record the uncached source's disappearance")
+}
+
 func TestSourceScanContinuesPastBrokenProjects(t *testing.T) {
 	tests := []struct {
 		name         string
 		breakProject func(t *testing.T, project string)
-		wantErr      bool
 		skipNote     string
 	}{
 		{
@@ -141,7 +165,6 @@ func TestSourceScanContinuesPastBrokenProjects(t *testing.T) {
 				require.NoError(t, os.Chmod(project, 0))
 				t.Cleanup(func() { assert.NoError(t, os.Chmod(project, 0o700)) })
 			},
-			wantErr:  true,
 			skipNote: "permission bits do not deny this user",
 		},
 	}
@@ -169,19 +192,18 @@ func TestSourceScanContinuesPastBrokenProjects(t *testing.T) {
 				require.NoError(t, os.WriteFile(path, []byte("appended"), 0o600))
 			}
 			var paths, roots []string
-			err := scanner.scan(t.Context(), func(_ context.Context, batch WatchBatch) error {
+			emit := func(_ context.Context, batch WatchBatch) error {
 				paths = append(paths, batch.Paths...)
 				roots = append(roots, batch.ReconcileRoots...)
 				return nil
-			})
-			if tt.wantErr {
-				require.Error(t, err)
-				assert.Empty(t, roots, "an unread project is not disappearance evidence")
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, []string{root}, roots, "the dangling link's former sources need provider reconciliation")
 			}
+			require.Error(t, scanner.scan(t.Context(), emit), "the pass could not cover the broken project")
 			assert.ElementsMatch(t, healthy, paths, "healthy sibling projects keep coverage")
+			// Provider discovery reports an unavailable project as incomplete, so
+			// requesting reconciliation would only fail again on every pass.
+			require.Error(t, scanner.scan(t.Context(), emit))
+			assert.Empty(t, roots, "an unavailable project is not disappearance evidence")
+			assert.True(t, scanner.cached(filepath.Join(root, "broken", "session.jsonl")), "the unavailable project keeps its cached rows")
 		})
 	}
 }
