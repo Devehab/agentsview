@@ -19,6 +19,7 @@ import (
 	"github.com/tidwall/gjson"
 	"go.kenn.io/agentsview/internal/ctxio"
 	"go.kenn.io/agentsview/internal/export"
+	"go.kenn.io/agentsview/internal/pricing"
 )
 
 // Codex JSONL entry types.
@@ -411,6 +412,10 @@ func (b *codexSessionBuilder) processLine(ctx context.Context,
 		}
 		b.handleResponseItem(ctx, payload, ts)
 	case codexTypeEventMsg:
+		if payload.Get("type").Str == "thread_settings_applied" {
+			b.handleEventMsg(payload)
+			return false, nil
+		}
 		if b.suppresses(codexTypeEventMsg, payload) {
 			return false, nil
 		}
@@ -557,6 +562,7 @@ func (b *codexSessionBuilder) handleResponseItem(ctx context.Context,
 	}
 	if role == string(RoleAssistant) {
 		msg.ReasoningEffort = b.reasoningEffort
+		msg.ProviderID = b.serviceTierProviderID
 	}
 	b.sink.AppendMessage(msg)
 }
@@ -592,6 +598,15 @@ func (b *codexSessionBuilder) handleAgentMessage(
 func (b *codexSessionBuilder) handleEventMsg(payload gjson.Result) {
 	eventType := payload.Get("type").Str
 	switch eventType {
+	case "thread_settings_applied":
+		switch payload.Get("thread_settings.service_tier").Str {
+		case "priority":
+			b.serviceTierProviderID = pricing.OpenAIPriorityProviderID
+		case "ultrafast":
+			b.serviceTierProviderID = pricing.OpenAIUltrafastProviderID
+		default:
+			b.serviceTierProviderID = ""
+		}
 	case "task_started", "task_complete", "turn_aborted":
 		b.observeTaskEvent(eventType)
 	case "token_count":
@@ -783,6 +798,7 @@ func (b *codexSessionBuilder) handleFunctionCall(
 		ContentLength:   len(content),
 		Model:           b.model,
 		ReasoningEffort: b.reasoningEffort,
+		ProviderID:      b.serviceTierProviderID,
 		ToolCalls:       toolCalls,
 	})
 	if callID != "" {
