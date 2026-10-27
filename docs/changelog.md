@@ -52,7 +52,7 @@ The latest release is
 
 **Bug fixes**
 
-- Codex Fast and Ultrafast sessions now use their service-tier prices.
+- Codex Fast sessions now use the Fast price.
   Existing Codex sessions whose rollout files are still on disk are repriced
   on upgrade, including offline use.
 - When an upgrade leaves the archive needing a full rebuild, the **Sync**

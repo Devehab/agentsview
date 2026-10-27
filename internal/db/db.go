@@ -607,7 +607,7 @@ CREATE INDEX IF NOT EXISTS idx_provider_freshness_updated_at
 // (147: keep one tool call per VS Code toolCallId so transcripts render. Re-parse
 // VS Code-format sources in place; source and session identities are unchanged.)
 // (148: link ordinary Codex forks to the thread named by forked_from_id. Re-parse
-// Codex-format sources in place; source and session identities are unchanged.)
+// Codex-format sources in place and add their Fast billing identity; source and session identities are unchanged.)
 const dataVersion = 148
 
 const archiveOnlyVersionBase = 1 << 20
