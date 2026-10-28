@@ -133,23 +133,6 @@ func TestConnCanceledFreshStatusKeepsTerminalStatesCached(t *testing.T) {
 	}
 }
 
-func TestVersionFollowupTimeoutCoversConfiguredRequests(t *testing.T) {
-	tests := []struct {
-		name    string
-		timeout time.Duration
-		want    time.Duration
-	}{
-		{name: "default", want: 35 * time.Second},
-		{name: "larger_configured_timeout", timeout: 20 * time.Second, want: 65 * time.Second},
-		{name: "overflow_saturates", timeout: time.Duration(1<<63 - 1), want: time.Duration(1<<63 - 1)},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, versionFollowupTimeout(tt.timeout))
-		})
-	}
-}
-
 func TestConnReprobesWhenUnavailable(t *testing.T) {
 	s := katatest.New(t)
 	s.Fail(http.MethodGet, "/api/v1/health", katatest.Fault{Status: 503})

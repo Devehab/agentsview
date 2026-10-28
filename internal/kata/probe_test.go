@@ -311,12 +311,14 @@ func TestResolveEndpointAcceptsCompleteOutputFromChildHoldingStdout(t *testing.T
 func TestResolveEndpointRejectsCanceledLocateOutput(t *testing.T) {
 	previous := locateCommand
 	t.Cleanup(func() { locateCommand = previous })
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	// The caller cancels while locate runs; its complete output must not win.
 	locateCommand = func(ctx context.Context) ([]byte, error) {
-		require.ErrorIs(t, ctx.Err(), context.Canceled)
+		require.NoError(t, ctx.Err())
+		cancel()
 		return []byte(`{"network":"tcp","request_base_url":"http://127.0.0.1:7777"}`), exec.ErrWaitDelay
 	}
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
 	endpoint, err := resolveEndpoint(ctx, "")
 	require.Error(t, err)
 	assert.Empty(t, endpoint)
