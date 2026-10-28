@@ -135,6 +135,7 @@ async function mockFriction(page: Page) {
         data_version: 1,
         insight_generation_available: false,
         friction_available: true,
+        friction_readable: true,
         version: "dev",
         commit: "unknown",
         build_date: "",
