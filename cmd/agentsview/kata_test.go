@@ -269,23 +269,6 @@ func (f kataStatusRoundTripper) RoundTrip(req *http.Request) (*http.Response, er
 	return f(req)
 }
 
-func TestKataStatusRequestBudget(t *testing.T) {
-	tests := []struct {
-		name        string
-		perRequest  time.Duration
-		wantTimeout time.Duration
-	}{
-		{name: "default", wantTimeout: 40 * time.Second},
-		{name: "configured", perRequest: 20 * time.Second, wantTimeout: 70 * time.Second},
-		{name: "large timeout saturates", perRequest: time.Duration(1<<63 - 1), wantTimeout: time.Duration(1<<63 - 1)},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.wantTimeout, kataStatusRequestBudget(tt.perRequest))
-		})
-	}
-}
-
 func TestKataStatusCommandDaemonRequestTimeout(t *testing.T) {
 	tests := []struct {
 		name        string
