@@ -33,6 +33,8 @@ class FrictionStore {
   lastBuildWritten: number | null = $state(null);
   lastUpdatedAt: number | null = $state(null);
   lastQueryDurationMs: number | null = $state(null);
+  /** Counts list loads that succeeded, from any caller, including Build now. */
+  listLoads = $state(0);
   #datesRead = new LatestRead();
   #digestRead = new LatestRead();
   #markdownRead = new LatestRead();
@@ -81,6 +83,7 @@ class FrictionStore {
       } else {
         await this.selectDate(target);
       }
+      this.listLoads += 1;
       this.lastQueryDurationMs = performance.now() - started;
     } catch (e) {
       if (isAbortError(e) || !this.#datesRead.isCurrent(signal)) {
@@ -180,6 +183,7 @@ class FrictionStore {
     this.selectedDate = null;
     this.digest = null;
     this.markdown = null;
+    this.listLoads = 0;
     this.errors.dates = null;
     this.errors.digest = null;
     this.errors.markdown = null;

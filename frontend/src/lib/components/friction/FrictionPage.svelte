@@ -26,7 +26,10 @@
   // Read before any effect runs: the store may still hold a date from an
   // earlier visit, and the URL must win.
   const initialDate = untrack(() => routeDate);
-  let settled = $state(false);
+  // The page settles after its first successful list load, whoever started
+  // it: this page, Retry, or Build now.
+  const listLoadsAtMount = untrack(() => friction.listLoads);
+  const settled = $derived(friction.listLoads > listLoadsAtMount);
 
   // The URL owns the selected date, so history and shared links work while
   // the page stays mounted.
@@ -57,17 +60,12 @@
   // Until a list load succeeds, the page keeps asking for what it opened
   // with: the URL's date, or the latest digest. A date left from an earlier
   // visit must not take over through a failed first load.
-  async function load(date: string | null) {
-    await friction.load(date);
-    if (friction.errors.dates === null) settled = true;
-  }
-
   function refresh() {
-    void load(settled ? friction.selectedDate : initialDate);
+    void friction.load(settled ? friction.selectedDate : initialDate);
   }
 
   onMount(() => {
-    void load(initialDate);
+    void friction.load(initialDate);
   });
 
   onDestroy(() => {

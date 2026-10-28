@@ -153,6 +153,7 @@ describe("FrictionPage", () => {
     loadCalls = [];
     vi.spyOn(friction, "load").mockImplementation(async (date) => {
       loadCalls.push(date);
+      if (friction.errors.dates === null) friction.listLoads += 1;
     });
     friction.dates = [
       {
@@ -474,5 +475,22 @@ describe("FrictionPage", () => {
     ) as HTMLButtonElement;
     retry.click();
     expect(loadCalls).toEqual([OLDER, OLDER]);
+  });
+
+  it("follows the digest a successful build opened after a failed first load", async () => {
+    friction.dates = [];
+    friction.selectedDate = null;
+    friction.digest = null;
+    friction.errors.dates = "network error";
+    router.params = { date: OLDER };
+    await render();
+    // Build now reloads through the store and opens the latest digest.
+    friction.errors.dates = null;
+    friction.selectedDate = DATE;
+    friction.listLoads += 1;
+    await tick();
+    expect(router.params["date"]).toBe(DATE);
+    document.querySelector<HTMLButtonElement>('button[aria-label="Refresh Friction Log"]')!.click();
+    expect(loadCalls.at(-1)).toBe(DATE);
   });
 });

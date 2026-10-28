@@ -90,6 +90,7 @@ describe("FrictionStore.load", () => {
     expect(friction.newerDate).toBeNull();
     expect(friction.loading.dates).toBe(false);
     expect(friction.lastUpdatedAt).not.toBeNull();
+    expect(friction.listLoads).toBe(1);
   });
 
   it("opens the requested date when a digest exists for it", async () => {
@@ -136,6 +137,7 @@ describe("FrictionStore.load", () => {
     await expect(friction.load()).resolves.toBeUndefined();
     expect(friction.errors.dates).toBe("not implemented for read-only store");
     expect(friction.loading.dates).toBe(false);
+    expect(friction.listLoads).toBe(0);
   });
 });
 
@@ -230,6 +232,7 @@ describe("FrictionStore.buildNow", () => {
     expect(friction.lastBuildWritten).toBe(1);
     expect(friction.selectedDate).toBe(LATEST);
     expect(friction.building).toBe(false);
+    expect(friction.listLoads).toBe(2);
   });
 
   it("keeps the current date when nothing was built", async () => {
