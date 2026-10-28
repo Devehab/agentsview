@@ -6,7 +6,6 @@ import {
   groupSignals,
   headlinePatterns,
   interruptionRows,
-  isDiagnosticSubject,
   sessionLinkParams,
   signalDims,
   sortedP0,
@@ -99,15 +98,6 @@ describe("interruptionRows", () => {
       ["s1", 1, 3],
     ]);
     expect(interruptionRows([])).toEqual([]);
-  });
-});
-
-describe("isDiagnosticSubject", () => {
-  it.each([
-    ["diagnostic subject", "diagnostic", true],
-    ["session subject", "session", false],
-  ])("%s", (_name, subjectKind, expected) => {
-    expect(isDiagnosticSubject({ subject_kind: subjectKind })).toBe(expected);
   });
 });
 
