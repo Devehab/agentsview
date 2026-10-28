@@ -378,7 +378,9 @@ describe("FrictionPage", () => {
   });
 
   it("moves to the older digest and records it in the URL", async () => {
-    const select = vi.spyOn(friction, "selectDate").mockResolvedValue();
+    const select = vi.spyOn(friction, "selectDate").mockImplementation(async (date) => {
+      friction.selectedDate = date;
+    });
     await render();
     const previous = document.querySelector<HTMLButtonElement>(
       'button[aria-label="Previous digest"]',
@@ -454,8 +456,10 @@ describe("FrictionPage", () => {
     const retry = Array.from(alert.querySelectorAll("button")).find(
       (b) => b.textContent?.trim() === "Retry",
     )!;
+    // The date kept from an earlier visit must not replace the latest digest.
+    expect(router.params["date"]).toBeUndefined();
     retry.click();
-    expect(loadCalls.at(-1)).toBe(DATE);
+    expect(loadCalls).toEqual([null, null]);
   });
 
   it("retries the bookmarked date when the first load fails", async () => {

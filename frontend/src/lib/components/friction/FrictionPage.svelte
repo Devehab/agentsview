@@ -54,15 +54,20 @@
     });
   });
 
-  // Before any digest loads, the URL still names the date to retry.
+  // Until a list load succeeds, the page keeps asking for what it opened
+  // with: the URL's date, or the latest digest. A date left from an earlier
+  // visit must not take over through a failed first load.
+  async function load(date: string | null) {
+    await friction.load(date);
+    if (friction.errors.dates === null) settled = true;
+  }
+
   function refresh() {
-    void friction.load(friction.selectedDate ?? routeDate);
+    void load(settled ? friction.selectedDate : initialDate);
   }
 
   onMount(() => {
-    void friction.load(initialDate).finally(() => {
-      settled = true;
-    });
+    void load(initialDate);
   });
 
   onDestroy(() => {
