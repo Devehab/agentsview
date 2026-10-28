@@ -333,6 +333,28 @@ func TestConnFreshStatusSharesProbeFinishedWhileWaiting(t *testing.T) {
 	assert.Equal(t, 2, probes, "a caller that did not wait still probes")
 }
 
+func TestConnFreshStatusDoesNotShareACanceledProbe(t *testing.T) {
+	c := NewConn(readyConfig("http://127.0.0.1:1"))
+	probes := 0
+	c.probe = func(ctx context.Context, _ Config) (Status, *Client) {
+		probes++
+		if ctx.Err() != nil {
+			return Status{State: StateUnavailable}, nil
+		}
+		return Status{State: StateReady}, nil
+	}
+	// A live caller waits while another caller's canceled probe finishes.
+	seen := c.probes.Load()
+	canceled, cancel := context.WithCancel(t.Context())
+	cancel()
+	assert.Equal(t, StateUnavailable, c.Status(canceled, true).State)
+	c.mu.Lock()
+	st := c.statusAfter(t.Context(), true, seen)
+	c.mu.Unlock()
+	assert.Equal(t, StateReady, st.State, "the live caller probes for itself")
+	assert.Equal(t, 2, probes)
+}
+
 func TestConnVersionReadyLeavesTimeForTheResponse(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		c := NewConn(readyConfig("http://127.0.0.1:1"))

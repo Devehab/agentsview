@@ -51,9 +51,10 @@ func (c *Conn) Status(ctx context.Context, fresh bool) Status {
 }
 
 // statusAfter returns a probe that finished after the caller saw seen
-// probes; it is fresh enough for a caller that waited for the lock.
+// probes; it is fresh enough for a caller that waited for the lock. A
+// canceled probe clears checked and is not shared.
 func (c *Conn) statusAfter(ctx context.Context, fresh bool, seen uint64) Status {
-	if fresh && c.probes.Load() != seen {
+	if fresh && c.probes.Load() != seen && !c.checked.IsZero() {
 		return c.status
 	}
 	return c.statusLocked(ctx, fresh)
