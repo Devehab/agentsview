@@ -10,7 +10,9 @@ vi.mock("../../api/generated/index.js", () => ({
 
 import { ui } from "../../stores/ui.svelte.js";
 // @ts-ignore
-import SessionFrictionFindings from "./SessionFrictionFindings.svelte";
+import SessionFrictionFindings, {
+  SESSION_FINDINGS_REFRESH_MS,
+} from "./SessionFrictionFindings.svelte";
 
 function finding(overrides: Record<string, unknown>) {
   return {
@@ -51,6 +53,27 @@ describe("SessionFrictionFindings", () => {
     component = undefined;
     document.body.innerHTML = "";
     vi.restoreAllMocks();
+  });
+
+  it("picks up findings that background review adds while the panel is open", async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.getApiV1FrictionFindings
+        .mockResolvedValueOnce({ findings: [], next_cursor: "" })
+        .mockResolvedValueOnce({ findings: [finding({})], next_cursor: "" });
+      component = mount(SessionFrictionFindings, {
+        target: document.body,
+        props: { sessionId: "test-session-medium-8" },
+      });
+      await flush();
+      expect(document.body.textContent).toContain("No friction findings in this session.");
+      await vi.advanceTimersByTimeAsync(SESSION_FINDINGS_REFRESH_MS);
+      await flush();
+      expect(document.body.textContent).toContain("no, use the other flag");
+      expect(mocks.getApiV1FrictionFindings).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("lists findings for the session and jumps to their message", async () => {

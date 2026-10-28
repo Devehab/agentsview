@@ -1,5 +1,7 @@
 <script module lang="ts">
   export const SESSION_FINDINGS_LIMIT = 500;
+  // Review runs in the background after sync, so an open panel rechecks.
+  export const SESSION_FINDINGS_REFRESH_MS = 60_000;
 </script>
 
 <script lang="ts">
@@ -37,9 +39,10 @@
   let failed = $state(false);
   const read = new LatestRead();
 
-  async function load(id: string) {
+  // A background refresh keeps the current list on screen until it answers.
+  async function load(id: string, background = false) {
     const signal = read.begin();
-    loading = true;
+    if (!background) loading = true;
     failed = false;
     try {
       const res = await FrictionService.getApiV1FrictionFindings(
@@ -62,7 +65,13 @@
   $effect(() => {
     const id = sessionId;
     void load(id);
-    return () => read.cancel();
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") void load(id, true);
+    }, SESSION_FINDINGS_REFRESH_MS);
+    return () => {
+      clearInterval(timer);
+      read.cancel();
+    };
   });
 </script>
 
