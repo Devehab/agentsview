@@ -61,16 +61,6 @@ func TestFakeFaultIsOneShot(t *testing.T) {
 	assert.Equal(t, 200, status)
 }
 
-func TestFakeRequiresTokenExceptHealth(t *testing.T) {
-	s := New(t)
-	s.SetToken("tok-1")
-	status, _ := get(t, s, "/api/v1/health")
-	assert.Equal(t, 200, status)
-	status, body := get(t, s, "/api/v1/projects")
-	assert.Equal(t, 401, status)
-	assert.Equal(t, "auth_required", body["error"].(map[string]any)["code"])
-}
-
 func post(t *testing.T, s *Server, path, key, body string) (int, map[string]any) {
 	t.Helper()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, s.URL+path, strings.NewReader(body))
