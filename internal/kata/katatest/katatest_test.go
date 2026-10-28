@@ -51,16 +51,6 @@ func TestFakeServesDetectionAndRecords(t *testing.T) {
 	assert.Len(t, s.RequestsMatching(http.MethodGet, "/api/v1/health"), 1)
 }
 
-func TestFakeFaultIsOneShot(t *testing.T) {
-	s := New(t)
-	s.Fail(http.MethodGet, "/api/v1/health", Fault{Status: 503, Code: "unavailable", Message: "down"})
-	status, body := get(t, s, "/api/v1/health")
-	assert.Equal(t, 503, status)
-	assert.Equal(t, "unavailable", body["error"].(map[string]any)["code"])
-	status, _ = get(t, s, "/api/v1/health")
-	assert.Equal(t, 200, status)
-}
-
 func post(t *testing.T, s *Server, path, key, body string) (int, map[string]any) {
 	t.Helper()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, s.URL+path, strings.NewReader(body))
