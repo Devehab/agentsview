@@ -3012,6 +3012,7 @@
   "friction_build_failed": "La generación falló: {error}",
   "friction_empty_title": "Todavía no hay resúmenes de fricción",
   "friction_empty_hint": "Se genera un resumen automáticamente cuando termina cada día local, y el trabajo horario recupera cualquier día que falte. Usa Generar ahora para crear los días que faltan de inmediato.",
+  "friction_empty_hint_remote": "Se genera un resumen automáticamente cuando termina cada día local, y el trabajo horario recupera cualquier día que falte. Para crear de inmediato los días que faltan, abre esta página en el equipo que ejecuta AgentsView o activa require_auth en el servidor.",
   "friction_load_error": "No se pudo cargar el registro de fricción",
   "friction_retry": "Reintentar",
   "friction_digest_heading": "Registro de fricción — {date}",

@@ -2968,6 +2968,7 @@
   "friction_build_failed": "作成に失敗しました: {error}",
   "friction_empty_title": "フリクションダイジェストはまだありません",
   "friction_empty_hint": "ダイジェストはローカルの各日が終わると自動で作成され、作成されなかった日は毎時のジョブが補います。「今すぐ作成」で不足している日をすぐに作成できます。",
+  "friction_empty_hint_remote": "ダイジェストはローカルの各日が終わると自動で作成され、作成されなかった日は毎時のジョブが補います。不足している日をすぐに作成するには、AgentsView を実行しているマシンでこのページを開くか、サーバーで require_auth を有効にしてください。",
   "friction_load_error": "フリクションログを読み込めませんでした",
   "friction_retry": "再試行",
   "friction_digest_heading": "フリクションログ — {date}",

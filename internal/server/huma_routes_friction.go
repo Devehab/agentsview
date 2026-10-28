@@ -252,6 +252,13 @@ func (s *Server) frictionRequireAuth() bool {
 	return s.cfg.RequireAuth
 }
 
+// frictionRunAllowed reports whether this caller may start a friction build:
+// an authenticated server accepts any caller that reached the route, and an
+// unauthenticated one accepts only direct localhost requests.
+func (s *Server) frictionRunAllowed(ctx context.Context) bool {
+	return s.frictionRequireAuth() || isLocalhostContext(ctx)
+}
+
 // frictionSessionURL mirrors the browser router: agent prefix and opaque id
 // are separate path segments (servicehttp.sessionWebURL uses the same split).
 func frictionSessionURL(base, sessionID string, ordinal *int) string {
@@ -516,7 +523,7 @@ func (s *Server) humaListFrictionPatterns(
 func (s *Server) humaRunFrictionReview(
 	ctx context.Context, in *frictionRunInput,
 ) (*jsonOutput[frictionRunResponse], error) {
-	if !s.frictionRequireAuth() && !isLocalhostContext(ctx) {
+	if !s.frictionRunAllowed(ctx) {
 		return nil, apiError(http.StatusForbidden,
 			"friction review runs require auth or a localhost request")
 	}

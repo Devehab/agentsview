@@ -2988,6 +2988,7 @@
   "friction_build_failed": "Build failed: {error}",
   "friction_empty_title": "No friction digests yet",
   "friction_empty_hint": "A digest is built automatically once each local day is complete, and the hourly job catches up on any day that was missed. Use Build now to build missing days right away.",
+  "friction_empty_hint_remote": "A digest is built automatically once each local day is complete, and the hourly job catches up on any day that was missed. To build missing days right away, open this page on the machine that runs AgentsView, or turn on require_auth on the server.",
   "friction_load_error": "Could not load the Friction Log",
   "friction_retry": "Retry",
   "friction_digest_heading": "Friction Log — {date}",

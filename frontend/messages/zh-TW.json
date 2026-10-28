@@ -2896,6 +2896,7 @@
   "friction_build_failed": "產生失敗：{error}",
   "friction_empty_title": "尚無摩擦摘要",
   "friction_empty_hint": "每個本地日期結束後會自動產生摘要，每小時執行的工作會補上遺漏的日期。使用「立即產生」可馬上產生缺少的日期。",
+  "friction_empty_hint_remote": "每個本地日期結束後會自動產生摘要，每小時執行的工作會補上遺漏的日期。若要馬上產生缺少的日期，請在執行 AgentsView 的電腦上開啟此頁面，或在伺服器上啟用 require_auth。",
   "friction_load_error": "無法載入摩擦日誌",
   "friction_retry": "重試",
   "friction_digest_heading": "摩擦日誌 — {date}",

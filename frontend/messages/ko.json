@@ -2899,6 +2899,7 @@
   "friction_build_failed": "생성 실패: {error}",
   "friction_empty_title": "아직 마찰 다이제스트가 없습니다",
   "friction_empty_hint": "다이제스트는 각 로컬 날짜가 끝나면 자동으로 생성되며, 누락된 날은 매시간 작업이 채웁니다. 누락된 날을 바로 만들려면 지금 생성을 사용하세요.",
+  "friction_empty_hint_remote": "다이제스트는 각 로컬 날짜가 끝나면 자동으로 생성되며, 누락된 날은 매시간 작업이 채웁니다. 누락된 날을 바로 만들려면 AgentsView를 실행하는 컴퓨터에서 이 페이지를 열거나 서버에서 require_auth를 켜세요.",
   "friction_load_error": "마찰 로그를 불러오지 못했습니다",
   "friction_retry": "다시 시도",
   "friction_digest_heading": "마찰 로그 — {date}",

@@ -127,7 +127,7 @@ const interruptionB = sig({
   fingerprint: `fl1:${"f".repeat(64)}`,
 });
 
-function version(overrides: Partial<VersionInfo & { friction_available: boolean }> = {}) {
+function version(overrides: Partial<VersionInfo> = {}) {
   return {
     api_version: 1,
     build_date: "",
@@ -135,6 +135,7 @@ function version(overrides: Partial<VersionInfo & { friction_available: boolean 
     data_version: 1,
     insight_generation_available: false,
     friction_available: true,
+    friction_build_allowed: true,
     read_only: false,
     version: "dev",
     ...overrides,
@@ -354,14 +355,15 @@ describe("FrictionPage", () => {
     expect(dims).toEqual(["seat:seat-02"]);
   });
 
-  it("offers Build now only when the server can build digests", async () => {
-    sync.serverVersion = version({ friction_available: false });
+  it("offers Build now only when the server accepts builds from this page", async () => {
+    // A page proxied without auth reads digests but cannot start a build.
+    sync.serverVersion = version({ friction_available: true, friction_build_allowed: false });
     await render();
     expect(document.body.textContent).not.toContain("Build now");
     await unmount(component!);
     component = undefined;
 
-    sync.serverVersion = version({ friction_available: true });
+    sync.serverVersion = version();
     const build = vi.spyOn(friction, "buildNow").mockResolvedValue();
     await render();
     const button = Array.from(document.querySelectorAll("button")).find(
@@ -429,8 +431,20 @@ describe("FrictionPage", () => {
     expect(text).toContain("Build now");
   });
 
+  it("says where to build missing days when this page cannot build", async () => {
+    sync.serverVersion = version({ friction_build_allowed: false });
+    friction.dates = [];
+    friction.selectedDate = null;
+    friction.digest = null;
+    await render();
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("built automatically");
+    expect(text).toContain("require_auth");
+    expect(text).not.toContain("Build now");
+  });
+
   it("explains that the Friction Log is off when the server does not build digests", async () => {
-    sync.serverVersion = version({ friction_available: false });
+    sync.serverVersion = version({ friction_available: false, friction_build_allowed: false });
     friction.dates = [];
     friction.selectedDate = null;
     friction.digest = null;
@@ -442,7 +456,7 @@ describe("FrictionPage", () => {
   });
 
   it("still shows stored digests when the server no longer builds them", async () => {
-    sync.serverVersion = version({ friction_available: false });
+    sync.serverVersion = version({ friction_available: false, friction_build_allowed: false });
     await render();
     expect(document.querySelector("h1")?.textContent).toBe("Friction Log — 2026-09-21");
     expect(document.body.textContent).not.toContain("Build now");

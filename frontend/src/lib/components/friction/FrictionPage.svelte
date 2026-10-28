@@ -18,6 +18,9 @@
   // friction_available means the server has a friction runner, which can
   // build even where the session archive is read-only, as on pg serve.
   const frictionAvailable = $derived(sync.serverVersion?.friction_available === true);
+  // Builds also need a caller the server accepts: localhost, or any caller
+  // when the server requires auth. A proxied page without auth cannot build.
+  const buildAllowed = $derived(sync.serverVersion?.friction_build_allowed === true);
   const dateOptions = $derived(
     friction.dates.map((item) => ({ name: item.date, label: item.date })),
   );
@@ -105,7 +108,7 @@
       </IconButton>
     </div>
 
-    {#if frictionAvailable}
+    {#if buildAllowed}
       <Button
         size="sm"
         label={m.friction_build_now()}
@@ -162,7 +165,9 @@
     {:else if !friction.loading.dates && friction.dates.length === 0}
       {#if frictionAvailable}
         <EmptyState title={m.friction_empty_title()}>
-          <p class="empty-hint">{m.friction_empty_hint()}</p>
+          <p class="empty-hint">
+            {buildAllowed ? m.friction_empty_hint() : m.friction_empty_hint_remote()}
+          </p>
         </EmptyState>
       {:else}
         <EmptyState title={m.friction_disabled_title()}>

@@ -2990,6 +2990,7 @@
   "friction_build_failed": "Yaratma alınmadı: {error}",
   "friction_empty_title": "Hələ sürtünmə icmalı yoxdur",
   "friction_empty_hint": "İcmal hər yerli gün başa çatdıqda avtomatik yaradılır, saatlıq iş isə buraxılmış günləri tamamlayır. Çatışmayan günləri dərhal yaratmaq üçün İndi yarat düyməsindən istifadə edin.",
+  "friction_empty_hint_remote": "İcmal hər yerli gün başa çatdıqda avtomatik yaradılır, saatlıq iş isə buraxılmış günləri tamamlayır. Çatışmayan günləri dərhal yaratmaq üçün bu səhifəni AgentsView işləyən kompüterdə açın və ya serverdə require_auth parametrini aktiv edin.",
   "friction_load_error": "Sürtünmə jurnalı yüklənmədi",
   "friction_retry": "Yenidən cəhd et",
   "friction_digest_heading": "Sürtünmə jurnalı — {date}",

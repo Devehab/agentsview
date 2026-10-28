@@ -275,6 +275,47 @@ func TestFrictionRunRoute(t *testing.T) {
 	})
 }
 
+// The page offers Build now from friction_build_allowed, so the flag must
+// match what the run route does with the same caller.
+func TestVersionFrictionBuildAllowedMatchesRunRoute(t *testing.T) {
+	fixed := time.Date(2026, 9, 16, 2, 30, 0, 0, time.UTC)
+	runner := &review.Runner{Loc: time.UTC, Now: func() time.Time { return fixed }, BackfillDays: 7}
+	te := setupWithServerOpts(t, []server.Option{server.WithFriction(runner, nil)})
+	runner.Store = te.db
+
+	tests := []struct {
+		name      string
+		remote    string
+		forwarded bool
+		want      bool
+	}{
+		{name: "direct_localhost", remote: "127.0.0.1:5000", want: true},
+		{name: "proxied_through_localhost", remote: "127.0.0.1:5000", forwarded: true, want: false},
+		{name: "remote_without_auth", remote: "203.0.113.9:4000", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			send := func(method, path, body string) *httptest.ResponseRecorder {
+				req := httptest.NewRequestWithContext(t.Context(), method, path, strings.NewReader(body))
+				req.Header.Set("Content-Type", "application/json")
+				req.RemoteAddr = tt.remote
+				if tt.forwarded {
+					req.Header.Set("X-Forwarded-For", "198.51.100.7")
+				}
+				w := httptest.NewRecorder()
+				te.handler.ServeHTTP(w, req)
+				return w
+			}
+			w := send(http.MethodGet, "/api/v1/version", "")
+			assertStatus(t, w, http.StatusOK)
+			assert.Equal(t, tt.want, decode[map[string]any](t, w)["friction_build_allowed"])
+
+			run := send(http.MethodPost, "/api/v1/friction/run", `{"date":"2026-09-14","dry_run":true}`)
+			assert.Equal(t, tt.want, run.Code != http.StatusForbidden, "run status %d: %s", run.Code, run.Body.String())
+		})
+	}
+}
+
 func TestFrictionRunRouteDisabled(t *testing.T) {
 	te := setup(t)
 	w := te.post(t, "/api/v1/friction/run", `{}`)

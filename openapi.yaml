@@ -8541,6 +8541,8 @@ components:
           type: integer
         friction_available:
           type: boolean
+        friction_build_allowed:
+          type: boolean
         friction_readable:
           type: boolean
         insight_generation_available:
@@ -8558,6 +8560,7 @@ components:
         - insight_generation_available
         - session_stats_available
         - friction_available
+        - friction_build_allowed
         - api_version
         - data_version
       type: object

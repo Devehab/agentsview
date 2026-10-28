@@ -3012,6 +3012,7 @@
   "friction_build_failed": "Échec de la génération : {error}",
   "friction_empty_title": "Aucun résumé de frictions pour l'instant",
   "friction_empty_hint": "Un résumé est généré automatiquement une fois chaque journée locale terminée, et la tâche horaire rattrape toute journée manquée. Utilisez Générer maintenant pour générer tout de suite les journées manquantes.",
+  "friction_empty_hint_remote": "Un résumé est généré automatiquement une fois chaque journée locale terminée, et la tâche horaire rattrape toute journée manquée. Pour générer tout de suite les journées manquantes, ouvrez cette page sur la machine qui exécute AgentsView, ou activez require_auth sur le serveur.",
   "friction_load_error": "Impossible de charger le journal des frictions",
   "friction_retry": "Réessayer",
   "friction_digest_heading": "Journal des frictions — {date}",
