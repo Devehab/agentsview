@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -32,15 +31,6 @@ type KataConfig struct {
 
 func defaultKataConfig() KataConfig {
 	return KataConfig{Project: DefaultKataProject, Actor: DefaultKataActor, Timeout: DefaultKataTimeout}
-}
-
-// Token reads the configured environment variable when called.
-func (c KataConfig) Token() string {
-	name := strings.TrimSpace(c.TokenEnv)
-	if name == "" {
-		return ""
-	}
-	return os.Getenv(name)
 }
 
 // Validate checks the enabled connection's transport settings.

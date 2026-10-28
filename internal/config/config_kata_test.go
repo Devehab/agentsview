@@ -63,14 +63,6 @@ func TestKataConfigValidate(t *testing.T) {
 	}
 }
 
-func TestKataConfigToken(t *testing.T) {
-	t.Setenv("AGENTSVIEW_TEST_KATA_TOKEN", "tok-value")
-	assert.Equal(t, "tok-value", KataConfig{TokenEnv: " AGENTSVIEW_TEST_KATA_TOKEN "}.Token())
-	assert.Empty(t, KataConfig{}.Token())
-	t.Setenv("AGENTSVIEW_TEST_KATA_TOKEN", "")
-	assert.Empty(t, KataConfig{TokenEnv: "AGENTSVIEW_TEST_KATA_TOKEN"}.Token())
-}
-
 func TestKataConfigTOMLLoadAndDefaults(t *testing.T) {
 	tests := []struct {
 		name string
