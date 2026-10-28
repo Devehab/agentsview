@@ -346,6 +346,7 @@ func prepareReplicaPushWatch(
 	}
 
 	cfg.LifecycleWake = wake
+	cfg.Health = newReplicaWatchHealth(appCfg.DataDir, name, target, interval, time.Now)
 
 	log.Printf(
 		"%s watch: starting (machine=%q debounce=%s interval=%s)",
@@ -356,19 +357,30 @@ func prepareReplicaPushWatch(
 	// live daemon still wins the writer and rejects the request.
 	appCfg.NoDaemonAutostart = cfg.Embed || requireLocal
 	appCfg.RequireDaemon = cfg.NoStartDaemon
+	// A watcher that exits with an error records it as a failed push, so a
+	// service manager restarting it builds a failure streak instead of
+	// refreshing the watcher's start time on every attempt.
 	writer, closeWriter, err := resolveArchiveWriteBackend(ctx, appCfg, transportIntentLongLived)
 	if err != nil {
+		err = fmt.Errorf("opening writer: %w", err)
+		cfg.Health.finish(err)
 		stopLifecycle()
 		unlock()
-		return nil, nil, fmt.Errorf("opening writer: %w", err)
+		return nil, nil, err
 	}
 	if _, local := writer.(*localArchiveWriteBackend); requireLocal && !local {
+		err := errors.New("push-watch requires the local archive writer")
+		cfg.Health.finish(err)
 		closeWriter()
 		stopLifecycle()
 		unlock()
-		return nil, nil, errors.New("push-watch requires the local archive writer")
+		return nil, nil, err
 	}
 	return func() error {
-		return writer.ReplicaPushWatch(ctx, backend, target, cfg, projects, exclude, debounce, interval)
+		err := writer.ReplicaPushWatch(ctx, backend, target, cfg, projects, exclude, debounce, interval)
+		if err != nil && ctx.Err() == nil {
+			cfg.Health.finish(err)
+		}
+		return err
 	}, func() { closeWriter(); stopLifecycle(); unlock() }, nil
 }

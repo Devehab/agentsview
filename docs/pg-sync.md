@@ -390,6 +390,12 @@ every configured target sequentially.
 Use the same `--projects`, `--exclude-projects`, or `--all-projects` filter
 flags as `pg push` to inspect the matching filtered or unfiltered watermark.
 
+With a `pg push --watch` watcher on this machine, status also shows its last
+success and any failure streak, and `--max-stale` alerts on a stalled watcher.
+Both work as described for
+[`clickhouse status`](/docs/clickhouse-sync/#agentsview-clickhouse-status); the
+record is `pg-watch-health.json`.
+
 Output:
 
 ```

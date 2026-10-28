@@ -36,6 +36,10 @@ type ReplicaPushConfig struct {
 	// Embed builds pending embeddings in this process before each push
 	// (pg push --embed). It requires the local archive writer.
 	Embed bool
+	// Health records each watch push's outcome for `<backend> status
+	// --max-stale`. It is set internally for the watcher holding the watch
+	// lock; it has no CLI flag.
+	Health *replicaWatchHealth
 	// OnPushSuccess refreshes serve-side capabilities after a watch push. It
 	// is set only by the combined PG serve/watch owner.
 	OnPushSuccess func(context.Context)
@@ -60,6 +64,9 @@ type ReplicaStatusConfig struct {
 	ProjectsFlag    string
 	ExcludeProjects string
 	AllProjects     bool
+	// MaxStale fails the status when the push watcher has stalled for
+	// longer than this. Zero disables the check.
+	MaxStale time.Duration
 }
 
 // replicaServeExtras is implemented by a replica registered in
@@ -458,6 +465,10 @@ func runReplicaStatus(
 	return nil
 }
 
+// replicaStatusQueryTimeout bounds the replica's status query under
+// --max-stale, so a monitor gets a failure instead of a hung check.
+var replicaStatusQueryTimeout = time.Minute
+
 func runReplicaStatusTarget(
 	backend storage.Replica,
 	database *db.DB,
@@ -484,18 +495,58 @@ func runReplicaStatusTarget(
 		return err
 	}
 
+	now := time.Now()
+	path := replicaWatchHealthPath(appCfg.DataDir, backend.Name())
+	rec, recErr := loadReplicaWatchRecord(path)
+	if recErr == nil && !rec.matches(target) {
+		recErr = fmt.Errorf("%s was written for another target or destination", path)
+	}
+	var watchRows []storage.StatusRow
+	if recErr == nil {
+		watchRows = replicaWatchRows(rec, now)
+	}
+	// A stuck push can hold locks that block the replica's status query, so
+	// a stall the record already shows is reported without querying.
+	if cfg.MaxStale > 0 && recErr == nil {
+		if stall := replicaWatchStall(rec, now, cfg.MaxStale); stall != "" {
+			writeReplicaStatus(os.Stdout, storage.ReplicaStatus{Rows: watchRows})
+			return fmt.Errorf(
+				"push watcher stalled for more than --max-stale %s: %s; run `agentsview %s service logs` for details",
+				cfg.MaxStale, stall, backend.Name(),
+			)
+		}
+	}
+
 	ctx, stop := signal.NotifyContext(
 		context.Background(), os.Interrupt,
 	)
 	defer stop()
+	if cfg.MaxStale > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, replicaStatusQueryTimeout)
+		defer cancel()
+	}
 
 	status, err := backend.Status(
 		ctx, database, target, projects, excludeProjects,
 	)
 	if err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return fmt.Errorf(
+				"%s did not answer the status query within %s: %w",
+				backend.DisplayName(), replicaStatusQueryTimeout, err,
+			)
+		}
 		return err
 	}
+	status.Rows = append(status.Rows, watchRows...)
 	writeReplicaStatus(os.Stdout, status)
+	if cfg.MaxStale > 0 && recErr != nil {
+		return fmt.Errorf(
+			"--max-stale needs a record from `agentsview %s push --watch` for this target: %w",
+			backend.Name(), recErr,
+		)
+	}
 	return nil
 }
 
