@@ -139,12 +139,12 @@ project with the repository's name, or a single established Git checkout name.
 Otherwise it uses the repository name. Conflicting checkout names are left for
 an explicit rule. The chosen name is saved so later imports keep using it.
 
-Session assignments and folder rules take priority. The original parser label
-and repository evidence remain in the archive. Sessions with a known Git
-checkout, no usable recorded repository URL, or an already corrected project are
-left unchanged.
+Session assignments and enabled folder rules take priority. The original parser
+label and repository evidence remain in the archive. Sessions with a previously
+identified Git checkout, no usable recorded repository URL, or an already
+corrected project are left unchanged.
 
-The first writable startup after upgrading repairs existing sessions
+The first normal writable startup after upgrading repairs existing sessions
 automatically, including sessions whose source files are gone. This runs once
 and updates project metadata without replacing transcripts or message IDs. An
 interrupted repair retries at the next startup. Read-only opens do not repair
@@ -158,7 +158,9 @@ agentsview db repair-projects --project sample_feature --format json
 ```
 
 For a manual repair, review the proposed names, stop the daemon or desktop app,
-then run the same command with `--apply`. Restart AgentsView afterward.
+then run the same command with `--apply`. `--project` limits the repair to that
+label, even before the automatic upgrade has run. Any pending automatic repair
+waits until the next normal writable startup. Restart AgentsView afterward.
 Subsequent imports and full resyncs retain the corrected attribution. Mirror
 pushes carry the updated session projects to PostgreSQL, DuckDB, and ClickHouse.
 

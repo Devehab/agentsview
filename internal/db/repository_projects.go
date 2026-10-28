@@ -181,7 +181,7 @@ func (r *repositoryProjectResolver) resolve(ctx context.Context, c repositoryPro
 	mappings, ok := r.mappings[c.machine]
 	if !ok {
 		var err error
-		mappings, err = loadWorktreeMappingsForMachineTx(ctx, r.tx, c.machine)
+		mappings, err = loadActiveWorktreeMappingsTx(ctx, r.tx, c.machine)
 		if err != nil {
 			return repositoryProjectName{}, false, err
 		}
@@ -224,6 +224,8 @@ func attributeRepositoryObservationTx(ctx context.Context, tx *sql.Tx, obs expor
 	c := repositoryProjectCandidate{remote: remote}
 	err := tx.QueryRowContext(ctx, `SELECT s.id, s.machine, s.cwd, s.project FROM sessions s
 		WHERE s.id = ? AND s.project = ? AND s.deleted_at IS NULL
+		AND NOT EXISTS (SELECT 1 FROM session_project_identity_snapshots snap
+			WHERE snap.session_id = s.id AND snap.worktree_relationship NOT IN ('', 'unknown'))
 		AND NOT EXISTS (SELECT 1 FROM session_project_assignments a WHERE a.session_id = s.id)`,
 		obs.SessionID, sourceProject).Scan(&c.id, &c.machine, &c.cwd, &c.currentProject)
 	if errors.Is(err, sql.ErrNoRows) {

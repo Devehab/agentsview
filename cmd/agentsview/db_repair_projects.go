@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"fmt"
@@ -24,7 +25,10 @@ func newDBRepairProjectsCommand() *cobra.Command {
 			}
 			var report db.RepositoryProjectRepair
 			if apply {
-				database, lock, err := openWriteDB(cmd.Context(), cfg)
+				database, lock, err := openWriteDBWith(cmd.Context(), cfg, func(ctx context.Context, cfg config.Config) (*db.DB, error) {
+					applyClassifierConfig(cfg)
+					return db.OpenForRepositoryProjectRepair(ctx, cfg.DBPath, cfg.ArchiveContent)
+				})
 				if err != nil {
 					return err
 				}

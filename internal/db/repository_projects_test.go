@@ -192,17 +192,89 @@ func TestRepositoryProjectAttribution(t *testing.T) {
 }
 
 func TestRepositoryProjectAttributionPreservesFolderRules(t *testing.T) {
-	d := testDB(t)
-	s, obs := repositorySession("mapped", "pr123", "https://example.com/team/sample.git")
-	_, err := d.CreateWorktreeProjectMapping(t.Context(), WorktreeProjectMapping{
-		Machine: "remote", PathPrefix: "/workspace", Layout: WorktreeMappingLayoutExplicit,
-		Project: "pr123", Enabled: true,
-	})
-	require.NoError(t, err)
-	require.NoError(t, d.UpsertSessionWithProjectIdentity(t.Context(), s, obs, s.Project))
-	got, err := d.GetSessionFull(t.Context(), s.ID)
-	require.NoError(t, err)
-	assert.Equal(t, "pr123", got.Project, "a rule equal to the source label is still explicit")
+	for _, tc := range []struct {
+		name    string
+		enabled bool
+		project string
+		repairs int
+	}{
+		{"enabled", true, "pr123", 0},
+		{"disabled", false, "sample", 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := testDB(t)
+			ctx := t.Context()
+			s, obs := repositorySession("mapped", "pr123", "https://example.com/team/sample.git")
+			_, err := d.CreateWorktreeProjectMapping(ctx, WorktreeProjectMapping{
+				Machine: "remote", PathPrefix: "/workspace", Layout: WorktreeMappingLayoutExplicit,
+				Project: "pr123", Enabled: tc.enabled,
+			})
+			require.NoError(t, err)
+			require.NoError(t, d.UpsertSessionWithProjectIdentity(ctx, s, obs, s.Project))
+			got, err := d.GetSessionFull(ctx, s.ID)
+			require.NoError(t, err)
+			assert.Equal(t, tc.project, got.Project, "only enabled rules take priority during import")
+
+			// Repeat through repair with the label retained by older importers.
+			require.NoError(t, d.UpsertSession(ctx, s))
+			preview, err := d.PreviewRepositoryProjects(ctx, "")
+			require.NoError(t, err)
+			assert.Equal(t, tc.repairs, preview.Sessions)
+			applied, err := d.RepairRepositoryProjects(ctx, "")
+			require.NoError(t, err)
+			assert.Equal(t, preview, applied)
+			got, err = d.GetSessionFull(ctx, s.ID)
+			require.NoError(t, err)
+			assert.Equal(t, tc.project, got.Project, "only enabled rules take priority during repair")
+		})
+	}
+}
+
+func TestRepositoryProjectAttributionPreservesKnownCheckoutOnReparse(t *testing.T) {
+	for _, relationship := range []export.WorktreeRelationship{export.WorktreeMain, export.WorktreeLinked} {
+		for _, mode := range []string{"ordinary", "batch"} {
+			t.Run(string(relationship)+"/"+mode, func(t *testing.T) {
+				d := testDB(t)
+				ctx := t.Context()
+				remote := "https://example.com/team/sample.git"
+				seed, seedObs := repositorySession("remote", "pr123", remote)
+				require.NoError(t, d.UpsertSessionWithProjectIdentity(ctx, seed, seedObs, seed.Project))
+				s, obs := repositorySession("known", "checkout_alias", remote)
+				obs.RepositoryPath = "/workspace/checkout_alias"
+				obs.WorktreeRelationship = relationship
+				require.NoError(t, d.UpsertSessionWithProjectIdentity(ctx, s, obs, s.Project))
+				before, err := d.listSessionProjectIdentitySnapshots(ctx, []string{s.ID})
+				require.NoError(t, err)
+
+				// A later parse still records the remote, but the checkout is gone.
+				obs.RepositoryPath = ""
+				obs.WorktreeRelationship = export.WorktreeUnknown
+				if mode == "ordinary" {
+					require.NoError(t, d.UpsertSessionWithProjectIdentity(ctx, s, obs, s.Project))
+				} else {
+					result, err := d.WriteSessionBatchContext(ctx, []SessionBatchWrite{{
+						Session: s, IdentityObservation: obs, IdentitySnapshotProject: &s.Project,
+					}})
+					require.NoError(t, err)
+					require.Equal(t, 1, result.WrittenSessions)
+				}
+				got, err := d.GetSessionFull(ctx, s.ID)
+				require.NoError(t, err)
+				assert.Equal(t, "checkout_alias", got.Project)
+				after, err := d.listSessionProjectIdentitySnapshots(ctx, []string{s.ID})
+				require.NoError(t, err)
+				assert.Equal(t, before, after, "keep the known checkout evidence")
+				repair, err := d.RepairRepositoryProjects(ctx, "")
+				require.NoError(t, err)
+				assert.Zero(t, repair.Sessions)
+				_, err = d.RestoreSessionProjectsFromIdentitySnapshots(ctx)
+				require.NoError(t, err)
+				got, err = d.GetSessionFull(ctx, s.ID)
+				require.NoError(t, err)
+				assert.Equal(t, "checkout_alias", got.Project, "reparse and rebuild agree")
+			})
+		}
+	}
 }
 
 func TestRepositoryProjectAttributionRequiresProducerRemote(t *testing.T) {
@@ -225,6 +297,12 @@ func TestRepositoryProjectRepairPreservesContentAndRebuild(t *testing.T) {
 	require.NoError(t, d.UpsertSessionWithProjectIdentity(ctx, s, obs, s.Project))
 	// An archive written by the old importer retained the parser label.
 	require.NoError(t, d.UpsertSession(ctx, s))
+	legacyObs := obs
+	legacyObs.SourceRecorded = false
+	require.NoError(t, d.UpsertProjectIdentityObservation(ctx, legacyObs))
+	stale, err := d.ListProjectIdentityObservations(ctx, []string{"pr123"})
+	require.NoError(t, err)
+	require.Len(t, stale, 1, "seed an actual stale aggregate for repair to remove")
 	require.NoError(t, d.InsertMessages(ctx, []Message{{SessionID: s.ID, Ordinal: 0, Role: "user", Content: "Keep this transcript."}}))
 	before, err := d.GetAllMessages(ctx, s.ID)
 	require.NoError(t, err)
