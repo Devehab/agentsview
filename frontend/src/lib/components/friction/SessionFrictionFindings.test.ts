@@ -10,9 +10,9 @@ vi.mock("../../api/generated/index.js", () => ({
 
 import { ui } from "../../stores/ui.svelte.js";
 // @ts-ignore
-import SessionFrictionFindings, {
-  SESSION_FINDINGS_REFRESH_MS,
-} from "./SessionFrictionFindings.svelte";
+import SessionFrictionFindings from "./SessionFrictionFindings.svelte";
+// @ts-ignore
+import { SESSION_FINDINGS_REFRESH_MS } from "./SessionFrictionFindings.svelte";
 
 function finding(overrides: Record<string, unknown>) {
   return {
