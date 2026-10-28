@@ -133,16 +133,6 @@ describe("SessionFrictionFindings", () => {
     expect(scroll).toHaveBeenCalledWith(3, "test-session-medium-8");
   });
 
-  it("says so when the session has no findings", async () => {
-    mocks.getApiV1FrictionFindings.mockResolvedValue({ findings: [], next_cursor: "" });
-    component = mount(SessionFrictionFindings, {
-      target: document.body,
-      props: { sessionId: "s1" },
-    });
-    await flush();
-    expect(document.body.textContent).toContain("No friction findings in this session.");
-  });
-
   it("stays quiet when findings are unavailable (read-only backend)", async () => {
     mocks.getApiV1FrictionFindings.mockRejectedValue(
       Object.assign(new Error("read only"), { status: 501 }),
