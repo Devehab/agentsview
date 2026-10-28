@@ -29,6 +29,7 @@ AgentsView stores all persistent data under a single directory, defaulting to
 ├── debug.log        # Log of the server, sync, and other commands
 ├── run/             # Windows only: daemon runtime records and locks
 ├── serve.log        # Detached daemon output
+├── tmp/             # Temporary files, only when the system temp directory is unusable
 └── uploads/         # Uploaded session files
 ```
 
@@ -38,6 +39,14 @@ rebuilds it automatically. Back up `sessions.db` for session history, `assets/`
 for images stored outside SQLite, `config.toml` for settings, and
 `telemetry-install-id` for installation identity. Keep the database and assets
 together when restoring or moving the archive.
+
+SQLite needs a writable temp directory for session writes and large sorts.
+AgentsView uses the system temp directory: `TMP` or `TEMP` on Windows, and
+`TMPDIR` elsewhere. If that directory cannot be written, for example inside a
+sandbox that confines child processes, AgentsView prints a warning and uses
+`tmp/` inside the data directory instead. Its child processes inherit the same
+choice. To use a different directory, point those variables at a writable
+directory before you start AgentsView.
 
 The desktop app and CLI share a detached local daemon for fresh reads and
 writes. A running daemon owns local SQLite writes for this data directory and
@@ -252,7 +261,7 @@ zoom_level = 120
 | `public_url`                        | Browser URL, trusted origin, and managed Caddy site address                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `public_origins`                    | Additional trusted origins for request Host/Origin checks                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `daemon_idle_timeout`               | Idle timeout for detached writable daemons; set to `"0s"` to keep them alive                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `chart_palette`                     | Server-wide categorical chart colors: `"agentsview"` (default) or `"matplotlib"`; also configurable under **Settings > Appearance**                                                                                                                                                                                                                                                                                                                                              |
+| `chart_palette`                     | Server-wide categorical chart colors: `"agentsview"` (default), `"matplotlib"`, or `"colorblind"`; also configurable under **Settings > Appearance**                                                                                                                                                                                                                                                                                                                                              |
 | `zoom_level`                        | Default interface zoom for clients without a local preference: `67`, `75`, `80`, `90`, `100`, `110`, `120`, `125`, `130`, `150`, `175`, or `200`. Defaults to `100` when omitted. Restart the daemon after manual edits                                                                                                                                                                                                                                                          |
 | `disabled_agents`                   | Session providers to exclude from local filesystem scanning — see [Disabling Session Providers](#disabling-session-providers)                                                                                                                                                                                                                                                                                                                                                    |
 | `[proxy]`                           | Managed proxy configuration table — see [Remote Access](/docs/remote-access/)                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -329,8 +338,18 @@ mode instead.
 | `AGENTSVIEW_AUTH_TOKEN_FILE`         | File holding the bearer token; overrides `auth_token` in `config.toml`. `~/` expands to the home directory. Cannot be combined with `AGENTSVIEW_AUTH_TOKEN`                                 |
 | `AGENTSVIEW_PG_ALLOW_INSECURE`       | Sets `allow_insecure` for the default PostgreSQL target, for a database on a private network without TLS                                                                                    |
 | `AGENTSVIEW_EMBEDDINGS_ENDPOINT`     | OpenAI-compatible embeddings endpoint for recipe adoption in `pg push --embed` and `pg serve`; local `serve` ignores it. See [semantic search on PostgreSQL](/docs/semantic-search/)        |
+| `AGENTSVIEW_EMBEDDINGS_API_KEY`      | Inline API key for that endpoint; requires `AGENTSVIEW_EMBEDDINGS_ENDPOINT` and cannot be combined with the file form                                                                        |
 | `AGENTSVIEW_EMBEDDINGS_API_KEY_FILE` | File holding that endpoint's API key; requires `AGENTSVIEW_EMBEDDINGS_ENDPOINT`                                                                                                             |
 | `AGENTSVIEW_EMBEDDINGS_BATCH_SIZE`   | Inputs per embeddings request; positive integer, default `32`; requires `AGENTSVIEW_EMBEDDINGS_ENDPOINT`. Lower it for providers with request token limits.                                 |
+
+Anyone who can inspect the container can read `AGENTSVIEW_EMBEDDINGS_API_KEY`,
+and every process AgentsView starts, such as an agent CLI, inherits it. Use
+`AGENTSVIEW_EMBEDDINGS_API_KEY_FILE` to keep the key out of the environment.
+Unlike `AGENTSVIEW_AUTH_TOKEN`, an empty `AGENTSVIEW_EMBEDDINGS_API_KEY` still
+counts as set: it stops startup on its own or next to the file form, so unset
+the form you don't use. Because the name belongs to the deployment server, a
+`[vector]` server can't read its key from it; startup stops while it is set, so
+give that server's `api_key_env` a different name.
 
 The image sets `AGENTSVIEW_MODE=serve`, `AGENTSVIEW_HOST=0.0.0.0`,
 `AGENTSVIEW_REQUIRE_AUTH=true`, and `AGENTSVIEW_NO_BROWSER=true`. An explicit
@@ -349,8 +368,9 @@ These rules fail closed:
   `strconv.ParseBool` accepts. Any other value, an unknown `AGENTSVIEW_MODE`, or
   a blank `AGENTSVIEW_HOST` stops startup with an error naming the variable.
 - A missing, unreadable, or empty `AGENTSVIEW_AUTH_TOKEN_FILE` or
-  `AGENTSVIEW_EMBEDDINGS_API_KEY_FILE` stops startup. AgentsView never falls
-  back to another secret source.
+  `AGENTSVIEW_EMBEDDINGS_API_KEY_FILE` stops startup. A blank
+  `AGENTSVIEW_EMBEDDINGS_API_KEY`, or setting both API-key forms, also stops
+  startup. AgentsView never falls back to another secret source.
 - Any `AGENTSVIEW_EMBEDDINGS_*` variable together with a `[vector]` section
   stops startup, so one place owns the embedding recipe.
 
@@ -1348,18 +1368,17 @@ update for it and saw it end on the same connection, or when a token update
 from a later turn covers it. Any other finished turn, such as a chat's last
 turn that ran while AgentsView was not connected, may be missing some or all of
 its tokens from the chat's counts. A session with such turns and with recorded
-token counts stays in the token and cost totals, which then say "N sessions
-partly captured; their token counts are low."
+token counts stays in the token and cost totals, which then run low for that
+session.
 
 A chat that AgentsView never listened in on, or listened in on without receiving
 a token update, has no token counts. For those, AgentsView asks OpenAI's usage
 report for the chat's share of your plan's weekly and five-hour limits, and the
 credits figure the report includes. That plan usage shows in the session
-details. Such sessions are left out of token and cost totals, and the totals say
-how many were left out ("N sessions billed as plan usage, not priced"). That
-count includes a chat AgentsView has not asked about yet, such as one waiting
-while plan usage is paused. Its session details say "Plan usage: not checked
-yet" until the first answer arrives.
+details. Such sessions are left out of token and cost totals; `agentsview usage`
+reports how many were left out. That count includes a chat AgentsView has not
+asked about yet, such as one waiting while plan usage is paused. Its session
+details say "Plan usage: not checked yet" until the first answer arrives.
 
 AgentsView asks for plan usage again after a failed request or an incomplete
 report, waiting longer each time, up to 6 hours between requests. It refreshes
@@ -2409,6 +2428,8 @@ text, paths, and identifiers stay out of outcome properties.
 Every event contains only:
 
 - app version and git commit
+- the distribution that built the binary, such as `homebrew` for Homebrew or
+  `kenn` for official downloads; empty for source builds
 - operating system and CPU architecture
 - the application-owned installation ID stored in
   `~/.agentsview/telemetry-install-id`
@@ -2422,8 +2443,11 @@ information, or hostname, and the events are sent with person-profile processing
 and GeoIP lookup disabled. The ping runs in the background and never blocks
 startup or operation.
 
-Only release builds send telemetry, and it stays off in CI. Disable it with an
-environment variable, then restart the server:
+A build sends telemetry only when it has the PostHog project key and a release
+version such as `0.33.0`. Release builds and the `make` build targets set the key
+at link time. Plain `go build` and `go test` binaries have no key and send
+nothing. Telemetry also stays off in CI. Disable it with an environment
+variable, then restart the server:
 
 ```bash
 export AGENTSVIEW_TELEMETRY_ENABLED=0  # or DO_NOT_TRACK=1

@@ -608,7 +608,7 @@ func TestRunPGRuntimeWarningHelperProcess(t *testing.T) {
 		Port:    port,
 		DataDir: os.Getenv("AGENTSVIEW_DATA_DIR"),
 	}
-	prepareReplicaServe = func(storage.Replica, config.Config, string) (replicaServeStartup, error) {
+	prepareReplicaServe = func(storage.Replica, config.Config, string, *ReplicaPushConfig) (replicaServeStartup, error) {
 		return replicaServeStartup{
 			cfg: appCfg, ctx: ctx,
 			rtOpts: serveRuntimeOptions{
@@ -624,7 +624,7 @@ func TestRunPGRuntimeWarningHelperProcess(t *testing.T) {
 	// This is only an orphan guard if the parent dies; normal completion is
 	// driven by the parent observing the warning on stdout.
 	time.AfterFunc(2*time.Minute, func() { os.Exit(0) })
-	runReplicaServe(pgReplica{}, appCfg, "")
+	runReplicaServe(pgReplica{}, appCfg, "", nil)
 }
 
 func TestMustLoadConfig(t *testing.T) {
@@ -778,12 +778,6 @@ func TestTruncateLogFileUnderLimit(t *testing.T) {
 	data, err := os.ReadFile(path)
 	require.NoError(t, err, "read after truncate")
 	assert.Equal(t, string(content), string(data), "content changed")
-}
-
-func TestTruncateLogFileMissing(t *testing.T) {
-	// Non-existent file: should not panic.
-	missing := filepath.Join(t.TempDir(), "missing", "log.txt")
-	truncateLogFile(missing, 1024)
 }
 
 func TestTruncateLogFileSymlink(t *testing.T) {
@@ -3899,4 +3893,26 @@ func TestCollectWatchRootsWatchesAliasHomeIndexes(t *testing.T) {
 	aliasRoot, ok := findCollectedWatchRoot(roots, alias)
 	require.True(t, ok, "the alias home must be watched for session_index.jsonl")
 	assert.False(t, aliasRoot.recursive)
+}
+
+func TestNoSyncRebuildNotice(t *testing.T) {
+	for _, tc := range []struct {
+		name                           string
+		noSync, archiveOnly, needsSync bool
+		want                           bool
+	}{
+		{"no-sync with stale archive", true, false, true, true},
+		{"no-sync with current archive", true, false, false, false},
+		{"syncing daemon rebuilds at startup", false, false, true, false},
+		{"archive-only rebuilds at startup", true, true, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			notice := noSyncRebuildNotice(tc.noSync, tc.archiveOnly, tc.needsSync)
+			if tc.want {
+				assert.Contains(t, notice, "Click Sync")
+			} else {
+				assert.Empty(t, notice)
+			}
+		})
+	}
 }

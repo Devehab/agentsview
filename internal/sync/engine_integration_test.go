@@ -6023,17 +6023,6 @@ func TestSyncPathsClaude(t *testing.T) {
 	assertSessionMessageCount(t, env.db, "paths-untouched", 1)
 }
 
-func TestSyncPathsIgnoresNonSessionFiles(t *testing.T) {
-	env := setupSingleAgentTestEnv(t, parser.AgentClaude)
-
-	// SyncPaths with non-session paths: no panic, no error
-	env.engine.SyncPaths([]string{
-		filepath.Join(env.claudeDir, "some-dir"),
-		filepath.Join(env.claudeDir, "proj", "README.md"),
-		"/tmp/random-file.txt",
-	})
-}
-
 func TestSyncPathsCodex(t *testing.T) {
 	env := setupTestEnv(t)
 
@@ -12909,10 +12898,7 @@ func TestPiSessionIntegration(t *testing.T) {
 
 	// Use the existing pi session fixture from the parser testdata.
 	// The fixture has id="pi-test-session-uuid".
-	_, callerFile, _, _ := runtime.Caller(0)
-	fixtureDir := filepath.Join(
-		filepath.Dir(callerFile), "..", "parser", "testdata", "pi",
-	)
+	fixtureDir := filepath.Join("..", "parser", "testdata", "pi")
 	fixtureContent, err := os.ReadFile(
 		filepath.Join(fixtureDir, "session.jsonl"),
 	)

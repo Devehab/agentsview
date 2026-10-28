@@ -1,5 +1,5 @@
 ---
-last_edited: 2026-10-22
+last_edited: 2026-10-27
 title: Changelog
 description: Release history for AgentsView
 ---
@@ -11,12 +11,43 @@ The latest release is
 
 **New features**
 
+- Assistants connected through MCP can now explain where one session's cost came
+  from. The new `get_session_usage` tool reports the same tokens and cost as
+  `agentsview session usage`, split by model and by request, with the most
+  expensive requests first on request. It reads the archive as stored and does
+  not refresh source files first.
+
+- You can now set the color of each message type in Settings > Appearance:
+  user messages, assistant text, thinking blocks, tool calls, and code blocks.
+  A color-blind safe preset and optional line patterns make the types easy to
+  tell apart without relying on hue. The setting warns when a chosen color
+  would make text hard to read in light, dark, or high-contrast mode.
+
+- Charts can use color-blind safe colors. Choose **Color-blind safe** under
+  **Settings > Appearance > Chart colors**, or set `chart_palette =
+  "colorblind"`. The skill trend, Trends, and Usage charts then use Petroff's
+  color sequences, which stay distinguishable with common forms of color
+  blindness. Past the tenth series, colors repeat with a pattern: hatched
+  Usage bars, areas, and treemap tiles, and dashed Trends lines.
+
+- PostgreSQL and ClickHouse push services can use a separately managed
+  collector with `service install --no-start-daemon`, avoiding competing daemons
+  and archive write locks during restarts. The push service exits if no writable
+  daemon is running, and the service manager restarts it until the collector
+  answers. Reinstalling restarts the service with the new arguments.
+
 - When Friction Log review is enabled, AgentsView stores daily digests and
   catches up on completed days missed while offline, including sessions that
   arrive late within the configured backfill window. Digests retain findings,
   usage, and pattern recurrence, and survive full resyncs that retain transcript
   text. PostgreSQL hubs build their own digests. Read APIs and CLI commands
   remain planned.
+- Container deployments can pass the embeddings API key for PostgreSQL recipe
+  adoption in `AGENTSVIEW_EMBEDDINGS_API_KEY` instead of mounting a key file.
+  Setting it together with `AGENTSVIEW_EMBEDDINGS_API_KEY_FILE` stops startup.
+  Under `AGENTSVIEW_MODE`, a `[vector]` server that reads its key from
+  `AGENTSVIEW_EMBEDDINGS_API_KEY` through `api_key_env` now stops startup;
+  rename that variable.
 
 **Improvements**
 
@@ -25,13 +56,52 @@ The latest release is
   Sessions with rows written before control-character cleanup are rewritten once.
 - `pg push` reduces writes when a session grows by rewriting only the messages
   from the first changed message onward instead of the whole session.
+- Homebrew installs built with `make homebrew` no longer replace themselves.
+  `agentsview update` stops and tells you to run `brew upgrade agentsview`;
+  `agentsview update --check` still reports new releases with the same advice.
+- Anonymous telemetry events now say which distribution built the binary, such
+  as `homebrew`. Source builds send an empty value. See
+  [Privacy and Telemetry](/docs/configuration/#privacy-and-telemetry).
 
 **Bug fixes**
 
+- Claude Code token and cost totals now include responses that contain only an
+  empty thinking block. These responses still show nothing in the transcript,
+  but their usage was dropped. Existing Claude-format sources are reprocessed on
+  upgrade to recover it.
+- Links with bare session UUIDs from Pi, OMP, Codex and other tools now open
+  matching sessions. Ambiguous IDs still require the full session ID.
+- When an upgrade leaves the archive needing a full rebuild, the **Sync**
+  button now runs that rebuild on every server, and the status bar shows when a
+  sync fails instead of staying silent. A rebuild that does not finish is
+  reported as a failed sync rather than a success, so sessions missing from
+  updated parsers, such as newer OpenCode sessions, no longer go unnoticed.
+  `serve --no-sync` also says at startup when the archive needs a rebuild.
+- Usage notes keep a straight accent on the leading edge of the card. The
+  accent no longer bends around the card's rounded corners.
+- Command Code v3 sessions appear with their titles, tool calls, and token
+  costs. Forks count only new usage, and existing sessions are reprocessed
+  on upgrade.
+- Foreground `agentsview serve` now exits with status 1 when a server is already
+  running so service managers retry. `serve --background` and `daemon start`
+  still exit with status 0.
+- Sync no longer fails every session when AgentsView runs inside a sandbox that
+  hands it an unusable temp directory, which mostly affects Windows. SQLite
+  needs a writable temp directory for every session write. When the inherited
+  one cannot be written, AgentsView now uses `tmp/` inside the data directory
+  and prints a warning that names both directories.
 - Claude Code channel questions appear in transcripts, search, and user-message
   totals. Rewinding after a channel conversation keeps that conversation as a
   separate fork and preserves the retry's session ID and saved items. Existing
   Claude-format sources are reprocessed on upgrade.
+- VS Code Copilot sessions that fetched a web page now show their transcript
+  instead of a blank page. VS Code saves each web fetch as two tool calls with
+  the same ID, and AgentsView now keeps only the visible one. Existing VS Code
+  Copilot, Positron, and Windsurf sessions are reprocessed on upgrade.
+- A forked Codex session now appears as a fork of the session it came from, the
+  way forks from other agents already do. Before, it showed up as an unrelated
+  top-level session. Existing Codex, TraeX, and Augure Code sessions are
+  reprocessed on upgrade.
 
 ## 0.46.1
 

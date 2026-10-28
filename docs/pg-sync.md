@@ -116,18 +116,19 @@ Sync sessions from the local SQLite database to PostgreSQL.
 agentsview pg push [target] [flags]
 ```
 
-| Flag                 | Default | Description                                                               |
-| -------------------- | ------- | ------------------------------------------------------------------------- |
-| `--all`              | `false` | Push every configured PG target sequentially                              |
-| `--full`             | `false` | Force full local resync and re-push, bypassing change detection           |
-| `--no-vectors`       | `false` | Skip the semantic-search vector phase for this run                        |
+| Flag                 | Default | Description                                                                                                                    |
+| -------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `--all`              | `false` | Push every configured PG target sequentially                                                                                   |
+| `--full`             | `false` | Force full local resync and re-push, bypassing change detection                                                                |
+| `--no-vectors`       | `false` | Skip the semantic-search vector phase for this run                                                                             |
 | `--embed`            | `false` | Push sessions, then build and push vectors; watch builds after syncs in the background and pushes vectors on the next interval |
-| `--projects`         |         | Comma-separated projects to push (inclusive)                              |
-| `--exclude-projects` |         | Comma-separated projects to exclude                                       |
-| `--all-projects`     | `false` | Ignore configured project filters for this run                            |
-| `--watch`            | `false` | Run continuously, pushing on change plus a periodic floor                 |
-| `--debounce`         | `30s`   | Coalesce window after a filesystem change before pushing (`--watch` only) |
-| `--interval`         | `15m`   | Periodic floor push interval (`--watch` only)                             |
+| `--projects`         |         | Comma-separated projects to push (inclusive)                                                                                   |
+| `--exclude-projects` |         | Comma-separated projects to exclude                                                                                            |
+| `--all-projects`     | `false` | Ignore configured project filters for this run                                                                                 |
+| `--watch`            | `false` | Run continuously, pushing on change plus a periodic floor                                                                      |
+| `--no-start-daemon`  | `false` | With `--watch`, require a writable daemon; exit if none is running; incompatible with `--embed`                                |
+| `--debounce`         | `30s`   | Coalesce window after a filesystem change before pushing (`--watch` only)                                                      |
+| `--interval`         | `15m`   | Periodic floor push interval (`--watch` only)                                                                                  |
 
 Without `--watch`, push is on-demand — run it whenever you want to sync. With
 `--watch`, the command stays in the foreground and keeps pushing until
@@ -328,8 +329,9 @@ runs it needs no shell wrapper:
 
 - With `[vector]` in its `config.toml`, it builds with that recipe.
 - Without `[vector]`, it adopts the recipe a configured workstation published to
-  PostgreSQL. Set `AGENTSVIEW_EMBEDDINGS_ENDPOINT` (and
-  `AGENTSVIEW_EMBEDDINGS_API_KEY_FILE` if the endpoint needs a key) under
+  PostgreSQL. Set `AGENTSVIEW_EMBEDDINGS_ENDPOINT` and, if the endpoint needs a
+  key, either `AGENTSVIEW_EMBEDDINGS_API_KEY` or
+  `AGENTSVIEW_EMBEDDINGS_API_KEY_FILE` (never both) under
   [`AGENTSVIEW_MODE`](/docs/configuration/#container-deployment). Adoption needs
   exactly one published recipe; see
   [semantic search: PostgreSQL](/docs/semantic-search/#postgresql).
@@ -429,6 +431,14 @@ The generated unit runs `agentsview pg push --watch`, pins `AGENTSVIEW_DATA_DIR`
 to the data directory used at install time, and writes logs to
 `~/.agentsview/pg-watch.log` unless you changed the data directory.
 
+If you run your own collector service, use
+`agentsview pg service install --no-start-daemon`. The push service exits if no
+writable daemon is running, and the service manager restarts it until the
+collector answers. It retries pushes while the collector restarts, without
+starting a daemon or opening the archive directly. Reinstalling restarts the
+service with the new flag. The default installation still starts a missing
+daemon for hosts that run only the push service.
+
 `install` requires a literal PostgreSQL URL in the effective default target of
 `~/.agentsview/config.toml`, either the legacy `[pg].url` or the target selected
 by `default_pg` from named `[pg.NAME]` blocks. It intentionally rejects
@@ -466,10 +476,25 @@ agentsview pg serve [flags]
 | `--tls-key`         |             | TLS key path                                        |
 | `--allowed-subnet`  |             | CIDR allowlist (repeatable/comma-separated)         |
 
-The normal session server is read-only: session uploads, file watching, and
-local sync are disabled. Sessions from all machines appear in a single unified
+The session HTTP API is read-only. Local sync and file watching run only when
+`--push-watch` is enabled. Sessions from all machines appear in a single unified
 view. The same deployment also serves the analytics dashboard and the Usage page
 from PostgreSQL-backed queries.
+
+```bash
+AGENTSVIEW_DATA_DIR=/data agentsview pg serve --push-watch
+# Add --embed to build and publish embeddings.
+```
+
+`--push-watch` ingests mounted roots and publishes to the default PG target in
+the same process. The data directory is the persistent archive; stop any other
+writer using it before starting.
+
+`--embed`, `--debounce` (default `30s`), and `--interval` (default `15m`) require
+`--push-watch`. It rejects `--no-sync` and hosted `raw_tenant`/`raw_derivation`
+configurations. The first published vector generation enables semantic search
+without a restart when vector search is configured. Shutdown waits for ingestion
+and embedding work, including a final push limited to 30 seconds.
 
 When the PostgreSQL role can write the raw-sync tables and ingest-job sequence,
 `pg serve` also registers the

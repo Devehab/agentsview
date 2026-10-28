@@ -3,6 +3,9 @@ name: CI
 env:
   # "|" falls back to direct on any proxy error (e.g. HTTP/2 INTERNAL_ERROR), not just 404/410.
   GOPROXY: "https://proxy.golang.org|direct"
+  # Compile with module-relative source paths so identical source shares one
+  # Go build cache across checkouts and worktrees.
+  GOFLAGS: -trimpath
 
 on:
   workflow_call:
@@ -91,7 +94,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
-          node-version: "24.22.1"
+          node-version: "26.12.0"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -866,7 +869,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
-          node-version: "24.22.1"
+          node-version: "26.12.0"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -890,9 +893,9 @@ jobs:
 
       - name: Pre-build Go binaries
         run: |
-          CGO_ENABLED=1 go build -tags "fts5,kit_posthog_disabled" \
+          CGO_ENABLED=1 go build -tags fts5 \
             -o /tmp/testfixture ./cmd/testfixture
-          CGO_ENABLED=1 go build -tags "fts5,kit_posthog_disabled" \
+          CGO_ENABLED=1 go build -tags fts5 \
             -o /tmp/agentsview ./cmd/agentsview
         env:
           CGO_ENABLED: "1"

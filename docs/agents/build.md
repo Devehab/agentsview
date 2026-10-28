@@ -22,9 +22,12 @@ server.
 `desktop-artifacts.yml` builds the frontend once on Linux and packages those
 assets in its Windows, Linux, and Linux ARM64 desktop builds.
 
-Desktop sidecar builds use `-trimpath` by default. Pull-request desktop builds
-set `AGENTSVIEW_SIDECAR_TRIMPATH=false` to reuse Go compile results from test
-jobs. Other desktop builds keep `-trimpath`.
+Go builds and tests use `-trimpath` everywhere: the `Makefile` exports it in
+`GOFLAGS`, the Go workflows set `GOFLAGS: -trimpath`, and desktop sidecar builds
+pass it unless `AGENTSVIEW_SIDECAR_TRIMPATH=false`. Matching flags let desktop
+builds reuse compile results from test jobs and let local worktrees share one
+build cache. See the [README](../../README.md#shared-go-build-cache) for opting
+out and debugging.
 
 Windows Go test and lint jobs in `ci.yml` put caches and temp files under
 `RUNNER_TEMP`. Capture tests use a private system-drive temporary directory so
@@ -34,9 +37,16 @@ ancestor permissions satisfy their checks.
 
 - Build with `CGO_ENABLED=1`; the SQLite driver requires CGO.
 - Use the `fts5` build tag for full-text search.
-- Do not add the `kit_posthog_disabled` tag to `go test`. The telemetry reporter
-  disables itself under `testing.Testing()`. E2E binaries run as real
-  processes, so their build keeps the tag.
+- The Makefile's `LDFLAGS` set the PostHog project key with
+  `-X go.kenn.io/kit/telemetry/posthog.projectKey`. Builds without it send no
+  telemetry, so keep it out of test and e2e builds.
+- `DISTRIBUTION` sets `main.distribution` and
+  `go.kenn.io/kit/telemetry/posthog.distribution` to who ships the binary.
+  Official direct downloads use `kenn` and keep self-updating, like builds
+  with no value. Any other value names a package manager: those builds refuse
+  `agentsview update` installs and point users at the package manager.
+  `make homebrew` is the release build with `DISTRIBUTION=homebrew`, written
+  to `$(BINDIR)/agentsview`.
 
 ## Frontend
 

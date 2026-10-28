@@ -340,6 +340,8 @@ func watchRecoveryForBatch(
 	}
 }
 
+var errNoWritableDaemon = errors.New("no writable agentsview daemon is running; start the agentsview collector or server")
+
 func resolveArchiveWriteBackend(
 	ctx context.Context,
 	appCfg config.Config,
@@ -365,6 +367,12 @@ func resolveArchiveWriteBackend(
 			"local daemon owns the SQLite archive but is not " +
 				"responding; refusing to write directly",
 		)
+	}
+	if appCfg.RequireDaemon {
+		if tr.Mode == transportHTTP {
+			return nil, nil, fmt.Errorf("daemon at %s is read-only: %w", tr.URL, db.ErrReadOnly)
+		}
+		return nil, nil, errNoWritableDaemon
 	}
 
 	database, writeLock, err := openWriteDB(ctx, appCfg)
@@ -1077,16 +1085,17 @@ func (b *localArchiveWriteBackend) ReplicaPushWatch(
 		name, backend.DisplayName(), target.Target.MachineName, debounce, interval,
 	)
 
-	push := pusher.push
-	if embedder != nil {
-		// The embedder's scheduler state belongs to the push loop, which
-		// runs every push, so it starts the scheduler there.
-		push = func(c context.Context, r pushReason, full bool) error {
-			if r != reasonShutdown {
-				embedder.ensureScheduler(ctx)
-			}
-			return pusher.push(c, r, full)
+	push := func(c context.Context, r pushReason, full bool) error {
+		if embedder != nil && r != reasonShutdown {
+			// The embedder's scheduler state belongs to the push loop, which
+			// runs every push, so it starts the scheduler there.
+			embedder.ensureScheduler(ctx)
 		}
+		err := pusher.push(c, r, full)
+		if err == nil && cfg.OnPushSuccess != nil {
+			cfg.OnPushSuccess(c)
+		}
+		return err
 	}
 	return archivePushWatch{
 		hooks:    b.watchHooks,

@@ -43,6 +43,10 @@ var (
 	version   = "dev"
 	commit    = "unknown"
 	buildDate = ""
+	// distribution names who ships this binary, set at link time: a package
+	// manager such as "homebrew", or "kenn" for official direct downloads.
+	// Empty for source builds.
+	distribution = ""
 )
 
 const (
@@ -75,6 +79,7 @@ func main() {
 	// production scans would suppress) can assert positive rule paths;
 	// the binary always wants the filter on.
 	secrets.EnableFixtureDeny()
+	ensureUsableTempDir(os.Stderr)
 
 	if err := executeCLI(); err != nil {
 		os.Exit(reportCLIError(err, os.Stderr))
@@ -293,6 +298,11 @@ func runServe(ctx context.Context, cfg config.Config, opts serveOptions, restart
 		if !stats.ArchiveRebuilt {
 			fatal("preserving archive after parser upgrade: rebuild aborted")
 		}
+	}
+
+	if notice := noSyncRebuildNotice(cfg.NoSync, archiveOnly, database.NeedsResync()); notice != "" {
+		fmt.Println(notice)
+		log.Print(notice)
 	}
 
 	if n := len(db.UserAutomationPrefixes()); n > 0 {
@@ -1871,6 +1881,19 @@ func runInitialSync(
 	})
 	printSyncSummary(stats, t)
 	return stats
+}
+
+// noSyncRebuildNotice tells a --no-sync operator that the archive needs a
+// rebuild that startup skipped. Archive-only archives rebuild at startup
+// without reading sources, so they never need it.
+func noSyncRebuildNotice(noSync, archiveOnly, needsResync bool) string {
+	if !noSync || archiveOnly || !needsResync {
+		return ""
+	}
+	return "The archive needs a full rebuild for this version, and --no-sync " +
+		"skips it at startup. Until it runs, sessions that need the new " +
+		"parsers stay missing. Click Sync in the web UI or run " +
+		"`agentsview sync` to rebuild it."
 }
 
 // runInitialResync runs ResyncAll, falling back to incremental

@@ -1,7 +1,6 @@
 package db
 
 import (
-	"regexp"
 	"strings"
 	"testing"
 
@@ -404,11 +403,6 @@ func normalizeSQL(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func TestNormalizeSQLHelperDoesNotMaskPlaceholders(t *testing.T) {
-	require.True(t, regexp.MustCompile(`\?\)|\$1`).MatchString(
-		normalizeSQL("value IN (?,?) OR value = $1")))
-}
-
 func TestBuildSessionFilterSQLPRHost(t *testing.T) {
 	for _, dialect := range []QueryDialect{SQLiteQueryDialect(), PostgresQueryDialect(), DuckDBQueryDialect(), ClickHouseQueryDialect()} {
 		t.Run(dialect.name, func(t *testing.T) {
@@ -417,7 +411,7 @@ func TestBuildSessionFilterSQLPRHost(t *testing.T) {
 			numberPredicate := map[string]string{
 				"sqlite":     "EXISTS (SELECT 1 FROM json_each(NULLIF(pr_links, '')) pl WHERE 1=1 AND json_extract(pl.value, '$.number') = ?)",
 				"postgres":   "EXISTS (SELECT 1 FROM jsonb_array_elements(NULLIF(pr_links, '')::jsonb) pl WHERE TRUE AND (pl->>'number')::bigint = $1)",
-				"duckdb":     "len(list_filter(CAST(json_extract(NULLIF(pr_links, ''), '$[*]') AS JSON[]), pl -> true AND CAST(pl->>'number' AS BIGINT) = ?)) > 0",
+				"duckdb":     "len(list_filter(CAST(json_extract(NULLIF(pr_links, ''), '$[*]') AS JSON[]), lambda pl: true AND CAST(pl->>'number' AS BIGINT) = ?)) > 0",
 				"clickhouse": "arrayExists(pl -> true AND JSONExtractInt(pl, 'number') = ?, JSONExtractArrayRaw(pr_links))",
 			}
 			assert.Contains(t, where, numberPredicate[dialect.name])

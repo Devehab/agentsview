@@ -313,8 +313,9 @@ type VectorEmbeddingsServerConfig struct {
 	// 0 means one attempt. Default 3.
 	MaxRetries int `toml:"max_retries" json:"max_retries"`
 
-	// apiKey is read from AGENTSVIEW_EMBEDDINGS_API_KEY_FILE for the
-	// deployment server; it takes precedence over APIKeyEnv.
+	// apiKey is read from AGENTSVIEW_EMBEDDINGS_API_KEY or
+	// AGENTSVIEW_EMBEDDINGS_API_KEY_FILE for the deployment server; it takes
+	// precedence over APIKeyEnv.
 	apiKey string
 }
 
@@ -533,8 +534,8 @@ func (c VectorEmbeddingsServerConfig) EmbedTransport() (embedconfig.Transport, e
 	return embedconfig.Transport{Timeout: timeout}, nil
 }
 
-// APIKey returns the key read from a deployment secret file, else the
-// environment variable named by APIKeyEnv. Returns "" when neither is set.
+// APIKey returns a deployment-provided key when set. Otherwise it reads the
+// environment variable named by APIKeyEnv, returning "" when unset.
 func (c VectorEmbeddingsServerConfig) APIKey() string {
 	if c.apiKey != "" {
 		return c.apiKey
@@ -826,17 +827,18 @@ type ChartPalette string
 const (
 	ChartPaletteAgentsview ChartPalette = "agentsview"
 	ChartPaletteMatplotlib ChartPalette = "matplotlib"
+	ChartPaletteColorblind ChartPalette = "colorblind"
 	DefaultChartPalette                 = ChartPaletteAgentsview
 )
 
 func ParseChartPalette(value string) (ChartPalette, error) {
 	palette := ChartPalette(value)
 	switch palette {
-	case ChartPaletteAgentsview, ChartPaletteMatplotlib:
+	case ChartPaletteAgentsview, ChartPaletteMatplotlib, ChartPaletteColorblind:
 		return palette, nil
 	default:
 		return "", fmt.Errorf(
-			`chart_palette must be "agentsview" or "matplotlib" (got %q)`,
+			`chart_palette must be "agentsview", "matplotlib", or "colorblind" (got %q)`,
 			value,
 		)
 	}
@@ -1069,6 +1071,9 @@ type Config struct {
 	// NoDaemonAutostart suppresses daemon autostart for this invocation
 	// only; pg push --embed sets it to keep the archive writer local.
 	NoDaemonAutostart bool `json:"-" toml:"-"`
+	// RequireDaemon sends archive writes only through a live writable daemon;
+	// never autostart one or open the archive directly.
+	RequireDaemon bool `json:"-" toml:"-"`
 
 	// vectorSectionDefined records a [vector] section in config.toml.
 	vectorSectionDefined bool

@@ -84,9 +84,9 @@ machine, syncs them into a local SQLite database, and serves a web UI at
 The daemon is the server: the web UI, API, session sync, and file watchers share
 one process. Choose `serve` for a foreground process or `daemon start` for a
 background process. Running `serve` when a compatible daemon is already running
-reports its URL and exits. `daemon stop` and `serve stop` both stop that
-writable server, including sync; `serve stop` also stops read-only mirror
-servers for the same data directory.
+reports its URL and exits with an error (status 1) in the foreground.
+`daemon stop` and `serve stop` both stop that writable server, including sync;
+`serve stop` also stops read-only mirror servers for the same data directory.
 
 For custom directories, additional agent homes, and supported S3 sources, see
 [Session discovery](https://agentsview.io/docs/configuration/#session-discovery).
@@ -638,6 +638,15 @@ agentsview pg status --all     # show status for every configured PG target
 agentsview pg serve            # serve web UI from the default PG target (read-only)
 ```
 
+```bash
+AGENTSVIEW_DATA_DIR=/data agentsview pg serve --push-watch
+```
+
+Use `--push-watch` to ingest mounted sessions and serve them from PostgreSQL in
+one process; see
+[PostgreSQL Sync](https://agentsview.io/docs/pg-sync/#agentsview-pg-serve) for setup
+and shutdown.
+
 Opt-in [hosted raw processing](docs/hosted-raw-sync.md) lets `pg serve` parse
 uploaded sources directly into PostgreSQL. It requires explicit tenant/schema
 provisioning, a restricted runtime role, authentication and Linux isolation.
@@ -831,12 +840,15 @@ name), each with one value from a fixed list in the server that drops anything
 else. All events use a stable random install ID as the event `DistinctId`.
 [Feature outcomes](docs/configuration.md#anonymous-daemon-telemetry) also count
 empty searches, visible errors, and failed sync attempts. The events include
-`application=agentsview`, app version, commit, OS, and CPU architecture, with
+`application=agentsview`, app version, commit, distribution (such as `homebrew`;
+empty for source builds), OS, and CPU architecture, with
 `$process_person_profile=false` and `$geoip_disable=true`. It does not include
 session, project, prompt, file path, account, or machine identity. Disable
 telemetry with `AGENTSVIEW_TELEMETRY_ENABLED=0`, `TELEMETRY_ENABLED=0`, or
-`DO_NOT_TRACK=1`. Only release builds send telemetry, and it stays off in CI and
-Go test binaries.
+`DO_NOT_TRACK=1`. A build sends telemetry only when it has the PostHog project
+key and a release version such as `0.33.0`. Release builds and the `make` build
+targets set the key at link time. Plain `go build` and `go test` binaries have
+no key and send nothing. Telemetry also stays off in CI.
 
 All session data stays on your machine. The server binds to `127.0.0.1` by
 default. The update check is optional and can be disabled with
@@ -884,6 +896,28 @@ socket before running the benchmark.
 Pre-commit and pre-push hooks via [prek](https://github.com/j178/prek): run
 `make lint-tools` and `make install-hooks` after cloning (requires `prek` 0.5.7
 or newer and `uv`).
+
+### Shared Go build cache
+
+`make` targets build and test Go code with `-trimpath`. Compiled packages then
+record module-relative source paths instead of the checkout's absolute path, so
+every clone and git worktree shares one Go build cache. Without it, each
+worktree compiles and stores its own copy of every package.
+
+- Opt out for one command with `make test GOFLAGS=-trimpath=false`.
+- Plain `go` commands outside `make` do not add the flag. Run
+  `go env -w GOFLAGS=-trimpath` to make it your default; `make` keeps flags
+  saved this way and appends `-trimpath` only when it is missing.
+
+Trimmed binaries need a source mapping in Delve:
+
+- `dlv debug` and `dlv test` inherit `GOFLAGS` and cannot find source files.
+  Pass `--build-flags=-trimpath=false`. Debug builds disable optimizations, so
+  they never shared cache entries with normal builds anyway.
+- For `dlv exec` or `dlv attach` on a trimmed binary, start Delve from the
+  repository root and run `config substitute-path -guess` (Delve 1.24 or
+  newer). It maps the module path to your checkout, the standard library to
+  `GOROOT`, and dependencies to the module cache.
 
 ### Project Layout
 

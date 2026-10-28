@@ -3,8 +3,17 @@ name: CI (macOS)
 env:
   # "|" falls back to direct on any proxy error (e.g. HTTP/2 INTERNAL_ERROR), not just 404/410.
   GOPROXY: "https://proxy.golang.org|direct"
+  # Compile with module-relative source paths so identical source shares one
+  # Go build cache across checkouts and worktrees.
+  GOFLAGS: -trimpath
 
 on:
+  pull_request:
+    paths:
+      - 'internal/**'
+      - 'go.mod'
+      - 'go.sum'
+      - '.github/workflows/ci-macos-main.yml'
   push:
     branches: [main]
     paths:
@@ -46,4 +55,9 @@ jobs:
         run: go run ./internal/pricing/cmd/litellm-snapshot -restore
 
       - name: Run focused macOS FSEvents tests
+        if: github.event_name == 'push'
         run: CGO_ENABLED=1 go test -tags "fts5" ./internal/fsevents ./internal/sync ./internal/db ./cmd/agentsview -count=1 -timeout=20m
+
+      - name: Run focused macOS FSEvents tests for pull requests
+        if: github.event_name == 'pull_request'
+        run: CGO_ENABLED=1 go test -tags "fts5" ./internal/fsevents ./internal/sync -count=1 -timeout=20m
