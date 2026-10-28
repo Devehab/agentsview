@@ -601,7 +601,7 @@ func TestGetIssueRejectsForeignProjectUID(t *testing.T) {
 
 func TestIssueRejectsMismatchedProjectUID(t *testing.T) {
 	const issueUID = "01J00000000000000000000008"
-	const issueJSON = `{"uid":"` + issueUID + `","short_id":"f008","project_id":17,"project_uid":"01J00000000000000000000003","status":"open"}`
+	const issueJSON = `{"uid":"` + issueUID + `","short_id":"f008","project_id":17,"project_uid":"01J00000000000000000000003","status":"open","title":"t"}`
 	tests := []struct {
 		name, method, suffix, response string
 		call                           func(*testing.T, *Client) error
