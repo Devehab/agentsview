@@ -144,18 +144,23 @@ and repository evidence remain in the archive. Sessions with a known Git
 checkout, no usable recorded repository URL, or an already corrected project are
 left unchanged.
 
-Preview corrections to existing sessions without reading their source files:
+The first writable startup after upgrading repairs existing sessions
+automatically, including sessions whose source files are gone. This runs once
+and updates project metadata without replacing transcripts or message IDs. An
+interrupted repair retries at the next startup. Read-only opens do not repair
+the archive.
+
+To inspect any remaining corrections without reading source files, run:
 
 ```bash
 agentsview db repair-projects
 agentsview db repair-projects --project sample_feature --format json
 ```
 
-Review the proposed names, stop the daemon or desktop app, then run the same
-command with `--apply`. Restart AgentsView afterward. The repair updates project
-metadata without replacing transcripts or message IDs. Subsequent imports and
-full resyncs retain the corrected attribution. Mirror pushes carry the updated
-session projects to PostgreSQL, DuckDB, and ClickHouse.
+For a manual repair, review the proposed names, stop the daemon or desktop app,
+then run the same command with `--apply`. Restart AgentsView afterward.
+Subsequent imports and full resyncs retain the corrected attribution. Mirror
+pushes carry the updated session projects to PostgreSQL, DuckDB, and ClickHouse.
 
 For sessions without recorded repository evidence, use a [folder rule](#rules).
 

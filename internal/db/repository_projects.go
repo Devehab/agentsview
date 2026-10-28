@@ -30,6 +30,28 @@ type RepositoryProjectRepair struct {
 
 type repositoryProjectName struct{ project, reason string }
 
+// Existing archives need the same attribution as new imports, even when their
+// source files and worktrees are gone. Commit the completion marker with the
+// metadata changes so an interrupted upgrade retries on the next writable open.
+func (db *DB) migrateRepositoryProjects(ctx context.Context, progress OpenProgressFunc) error {
+	return db.Update(ctx, func(tx *sql.Tx) error {
+		var done bool
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS (
+			SELECT 1 FROM stats WHERE key = 'repository_projects_repaired' AND value = 1
+		)`).Scan(&done); err != nil || done {
+			return err
+		}
+		progress.report("Repairing repository project names")
+		if _, err := repairRepositoryProjectsTx(ctx, tx, "", true); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO stats (key, value)
+			VALUES ('repository_projects_repaired', 1)
+			ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
+		return err
+	})
+}
+
 // Cache within a transaction, never across writes or archives. A saved choice
 // prevents later imports or pruning from changing an established name.
 type repositoryProjectResolver struct {

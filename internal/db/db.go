@@ -1453,6 +1453,10 @@ func open(
 		return closeOnError(fmt.Errorf("queueing project identity backfill: %w", err))
 	}
 
+	if err := d.migrateRepositoryProjects(ctx, progress); err != nil {
+		return closeOnError(fmt.Errorf("repairing repository project names: %w", err))
+	}
+
 	if dataStale || schemaRepairNeeded {
 		d.dataStale.Store(true)
 		log.Printf(

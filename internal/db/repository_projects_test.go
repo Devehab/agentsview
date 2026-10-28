@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"path/filepath"
 	"testing"
@@ -8,8 +9,131 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.kenn.io/agentsview/internal/config"
 	"go.kenn.io/agentsview/internal/export"
 )
+
+func TestRepositoryProjectUpgradeOnOpen(t *testing.T) {
+	for _, archiveOnly := range []bool{false, true} {
+		name := "local"
+		if archiveOnly {
+			name = "archive_only"
+		}
+		t.Run(name, func(t *testing.T) {
+			ctx := t.Context()
+			d := testDB(t)
+			path := d.Path()
+			main, mainObs := repositorySession("main", "sample", "https://example.com/team/sample-dev.git")
+			mainObs.RepositoryPath = main.Cwd
+			mainObs.WorktreeRelationship = export.WorktreeMain
+			require.NoError(t, d.UpsertSessionWithProjectIdentity(ctx, main, mainObs, main.Project))
+			for _, id := range []string{"old", "assigned", "mapped"} {
+				s, obs := repositorySession(id, "pr123", "https://example.com/team/sample-dev.git")
+				s.Cwd = "/unavailable/" + id
+				obs.RootPath = s.Cwd
+				require.NoError(t, d.UpsertSessionWithProjectIdentity(ctx, s, obs, s.Project))
+				// Simulate the effective labels stored by the released importer.
+				require.NoError(t, d.UpsertSession(ctx, s))
+			}
+			_, err := d.AssignSessionProject(ctx, "assigned", "curated")
+			require.NoError(t, err)
+			_, err = d.CreateWorktreeProjectMapping(ctx, WorktreeProjectMapping{
+				Machine: "remote", PathPrefix: "/unavailable/mapped", Layout: WorktreeMappingLayoutExplicit,
+				Project: "pr123", Enabled: true,
+			})
+			require.NoError(t, err)
+			require.NoError(t, d.InsertMessages(ctx, []Message{{SessionID: "old", Ordinal: 0, Role: "user", Content: "Archived conversation."}}))
+			before, err := d.GetAllMessages(ctx, "old")
+			require.NoError(t, err)
+			require.Len(t, before, 1)
+			snapshots, err := d.listSessionProjectIdentitySnapshots(ctx, []string{"old", "assigned", "mapped"})
+			require.NoError(t, err)
+			if archiveOnly {
+				require.NoError(t, d.EnableArchiveOnly(ctx))
+			}
+			require.NoError(t, d.Update(ctx, func(tx *sql.Tx) error {
+				_, err := tx.ExecContext(ctx, `DROP TABLE repository_project_names;
+					DELETE FROM stats WHERE key = 'repository_projects_repaired'`)
+				return err
+			}))
+			require.NoError(t, d.Close())
+
+			reader, err := OpenReadOnly(ctx, path)
+			require.NoError(t, err)
+			old, err := reader.GetSessionFull(ctx, "old")
+			require.NoError(t, err)
+			require.NotNil(t, old)
+			assert.Equal(t, "pr123", old.Project, "read-only opens never run repairs")
+			require.NoError(t, reader.Close())
+
+			upgraded, err := Open(ctx, path)
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = upgraded.Close() })
+			for id, project := range map[string]string{"old": "sample", "assigned": "curated", "mapped": "pr123"} {
+				got, err := upgraded.GetSessionFull(ctx, id)
+				require.NoError(t, err)
+				require.NotNil(t, got)
+				assert.Equal(t, project, got.Project, id)
+			}
+			after, err := upgraded.GetAllMessages(ctx, "old")
+			require.NoError(t, err)
+			assert.Equal(t, before, after, "upgrade preserves transcripts and message identities without source files")
+			afterSnapshots, err := upgraded.listSessionProjectIdentitySnapshots(ctx, []string{"old", "assigned", "mapped"})
+			require.NoError(t, err)
+			assert.Equal(t, snapshots, afterSnapshots)
+			require.NoError(t, upgraded.Close())
+
+			var repairRuns int
+			reopened, err := OpenWithProgress(ctx, path, config.ArchiveContentFull, func(progress OpenProgress) {
+				if progress.Detail == "Repairing repository project names" {
+					repairRuns++
+				}
+			})
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = reopened.Close() })
+			assert.Zero(t, repairRuns, "later opens must not scan the archive again")
+			got, err := reopened.GetSessionFull(ctx, "old")
+			require.NoError(t, err)
+			assert.Equal(t, "sample", got.Project)
+		})
+	}
+}
+
+func TestRepositoryProjectUpgradeRetriesAfterCancellation(t *testing.T) {
+	ctx := t.Context()
+	d := testDB(t)
+	path := d.Path()
+	s, obs := repositorySession("old", "pr123", "https://example.com/team/sample.git")
+	require.NoError(t, d.UpsertSessionWithProjectIdentity(ctx, s, obs, s.Project))
+	require.NoError(t, d.UpsertSession(ctx, s))
+	require.NoError(t, d.Update(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM stats WHERE key = 'repository_projects_repaired'`)
+		return err
+	}))
+	require.NoError(t, d.Close())
+	canceled, cancel := context.WithCancel(ctx)
+	defer cancel()
+	failed, err := OpenWithProgress(canceled, path, config.ArchiveContentFull, func(progress OpenProgress) {
+		if progress.Detail == "Repairing repository project names" {
+			cancel()
+		}
+	})
+	require.ErrorIs(t, err, context.Canceled)
+	require.Nil(t, failed)
+	reader, err := OpenReadOnly(ctx, path)
+	require.NoError(t, err)
+	got, err := reader.GetSessionFull(ctx, "old")
+	require.NoError(t, err)
+	assert.Equal(t, "pr123", got.Project)
+	require.NoError(t, reader.Close())
+
+	retried, err := Open(ctx, path)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = retried.Close() })
+	got, err = retried.GetSessionFull(ctx, "old")
+	require.NoError(t, err)
+	assert.Equal(t, "sample", got.Project)
+}
 
 func repositorySession(id, project, remote string) (Session, export.ProjectIdentityObservation) {
 	s := Session{ID: id, Project: project, Machine: "remote", Agent: "codex", Cwd: "/workspace/" + project}
