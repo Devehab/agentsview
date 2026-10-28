@@ -457,4 +457,18 @@ describe("FrictionPage", () => {
     retry.click();
     expect(loadCalls.at(-1)).toBe(DATE);
   });
+
+  it("retries the bookmarked date when the first load fails", async () => {
+    friction.dates = [];
+    friction.selectedDate = null;
+    friction.digest = null;
+    friction.errors.dates = "network error";
+    router.params = { date: OLDER };
+    await render();
+    const retry = Array.from(document.querySelectorAll('[role="alert"] button')).find(
+      (b) => b.textContent?.trim() === "Retry",
+    ) as HTMLButtonElement;
+    retry.click();
+    expect(loadCalls).toEqual([OLDER, OLDER]);
+  });
 });

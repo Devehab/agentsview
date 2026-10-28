@@ -54,8 +54,9 @@
     });
   });
 
+  // Before any digest loads, the URL still names the date to retry.
   function refresh() {
-    void friction.load(friction.selectedDate);
+    void friction.load(friction.selectedDate ?? routeDate);
   }
 
   onMount(() => {
