@@ -65,6 +65,11 @@ The latest release is
 
 **Bug fixes**
 
+- Imported sessions with a recorded repository URL no longer split into separate
+  projects just because their worktree folders are unavailable. Preview
+  corrections to existing SQLite archives with `db repair-projects`, then use
+  `--apply` to save them. Explicit project rules still take priority.
+
 - Claude Code token and cost totals now include responses that contain only an
   empty thinking block. These responses still show nothing in the transcript,
   but their usage was dropped. Existing Claude-format sources are reprocessed on
