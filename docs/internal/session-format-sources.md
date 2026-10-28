@@ -3511,6 +3511,20 @@ schemas keep their existing ordering behavior.
     current outranks legacy JSONL, configured root order breaks ties within a
     class, and recency then canonical path provide deterministic ties.
 
+    kiro-cli writes each subagent's transcript, including subagents spawned by
+    other subagents, flat at `sess_<id>/sub-executions/<subSessionId>.jsonl` in
+    the same envelope as `messages.jsonl`. The spawning transcript records a
+    `sub_agent_start` (`subSessionId`, `subAgentName`, `prompt`, `explanation`)
+    and a `sub_agent_complete` (`subSessionId`, `status`, `response`,
+    `errorMessage`); it writes no `tool_call` for the spawn, and record `id`
+    values can repeat, so `subSessionId` is the pairing key. This layout was
+    observed in local kiro-cli 2.34.1 output on 2026-10-27: every
+    `sub_agent_start` had a matching sub-executions file, `response` was always
+    a string, and failed spawns could also set `errorMessage`. Rechecked against
+    local kiro-cli 2.34.2 output the same day: every `sub_agent_complete`
+    `status` was `success` or `error`, and every ordinary `tool_result` record
+    carried a `success` boolean or null. There is no producer schema.
+
 - **Evidence:** `documentation`.
 
 - **Upstream:** Kiro's first-party [license page](https://kiro.dev/license/) and
@@ -3550,6 +3564,25 @@ schemas keep their existing ordering behavior.
   `session.json` and the legacy JSONL sidecar carry a `title`, which
   Agentsview uses as the session name; the SQLite generation carries none. The
   first message falls back to the title only when there is no user message.
+
+    Each sub-executions file is its own source; only regular `<id>.jsonl` files
+    directly inside `sub-executions` count. A `subSessionId` shaped like a
+    session directory (`sess_<id>`) is ignored in spawn records and file names,
+    because `kiro:sess_<id>` would collide with that session. Each spawn becomes
+    an `invoke_subagent` Task tool call and result; the result records `success`
+    as `completed` and `error` as `errored`, so a failed delegation counts in
+    tool health, and leaves any other value unknown. Ordinary `tool_result`
+    records' `success` is not read. Each subagent becomes session
+    `kiro:<subSessionId>`, parsed from its own transcript only, with the project
+    and working directory of its session's `session.json`. The parser links it
+    to the session whose directory holds it; the subagent linker then moves a
+    nested subagent onto the subagent whose Task call names it. Subagent
+    sessions carry no name, because `subAgentName` lives only in the spawning
+    transcript. Data version 151 reparses Kiro sources in place so archived
+    sessions gain their Task calls. Limit: a session whose SQLite duplicate
+    outranks its current JSONL source is parsed from SQLite, which is not read
+    for spawns, so it records no Task calls; its subagents still sync from their
+    own transcripts.
 
 ## Kiro IDE (`kiro-ide`)
 
