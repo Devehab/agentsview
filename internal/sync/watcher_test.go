@@ -18,6 +18,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.kenn.io/kit/stacktest"
 )
 
 const watcherTestTimeout = 5 * time.Second
@@ -28,6 +29,7 @@ func requireReceiveWithin[T any](t *testing.T, ch <-chan T, timeout time.Duratio
 	case value := <-ch:
 		return value
 	case <-time.After(timeout):
+		stacktest.Dump(t)
 		require.FailNow(t, "timed out waiting for channel value")
 		var zero T
 		return zero
@@ -320,6 +322,7 @@ func (b *fakeWatchBackend) sendBackendEvent(t *testing.T, event backendEvent) {
 	select {
 	case b.events <- event:
 	case <-time.After(watcherTestTimeout):
+		stacktest.Dump(t)
 		require.FailNowf(t, "test failed", "scheduler did not drain backend event for %q", event.Path)
 	}
 }
@@ -329,6 +332,7 @@ func (b *fakeWatchBackend) sendError(t *testing.T, err error) {
 	select {
 	case b.errors <- err:
 	case <-time.After(watcherTestTimeout):
+		stacktest.Dump(t)
 		require.FailNowf(t, "test failed", "scheduler did not drain backend error %q", err)
 	}
 }
@@ -356,6 +360,7 @@ func startFakeWatcherWithLimits(
 	select {
 	case <-backend.started:
 	case <-time.After(watcherTestTimeout):
+		stacktest.Dump(t)
 		require.FailNow(t, "watch backend did not start")
 	}
 	return w
@@ -415,6 +420,7 @@ func receiveWatcherCall(t *testing.T, calls <-chan watcherCall) watcherCall {
 	case call := <-calls:
 		return call
 	case <-time.After(watcherTestTimeout):
+		stacktest.Dump(t)
 		require.FailNow(t, "timed out waiting for watcher callback")
 		return watcherCall{}
 	}
@@ -431,6 +437,7 @@ func waitForPath(t *testing.T, calls <-chan []string, path string) {
 				return
 			}
 		case <-deadline.C:
+			stacktest.Dump(t)
 			require.FailNowf(t, "test failed", "timed out waiting for watcher path %q", path)
 		}
 	}
@@ -460,6 +467,7 @@ func receiveWatchBatch(t *testing.T, calls <-chan WatchBatch) WatchBatch {
 	case batch := <-calls:
 		return batch
 	case <-time.After(watcherTestTimeout):
+		stacktest.Dump(t)
 		require.FailNow(t, "timed out waiting for watcher callback")
 		return WatchBatch{}
 	}
