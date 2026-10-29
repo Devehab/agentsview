@@ -7,6 +7,7 @@
   import { formatMoney, moneyFromMicrodollars } from "../../money.js";
   import { seriesPaint } from "../../utils/seriesPaint.js";
   import SeriesPatternDefs from "../shared/SeriesPatternDefs.svelte";
+  import { treemapLabelSize, type TreemapLabelScale } from "./treemapLabelSize.js";
 
   interface TreemapItem {
     id: string;
@@ -25,6 +26,7 @@
     onSelect?: (id: string) => void;
     onOpen?: (id: string) => void;
     formatValue?: (value: number) => string;
+    labelScale?: TreemapLabelScale;
   }
 
   const uid = $props.id();
@@ -39,6 +41,7 @@
     onSelect,
     onOpen,
     formatValue = formatCost,
+    labelScale = "sqrt",
   }: Props = $props();
 
   const root = $derived.by(() =>
@@ -48,16 +51,6 @@
   );
 
   const total = $derived(root.value ?? 0);
-
-  // Labels on large tiles grow with the tile's share of the total, so the
-  // biggest categories read first. sqrt because tile area already grows
-  // linearly with share. Never below the 11px floor, and never too tall for
-  // the value and meta lines under the label.
-  function labelSize(value: number, tileHeight: number): number {
-    if (total <= 0) return 11;
-    const size = Math.round(28 * Math.sqrt(value / total));
-    return Math.max(11, Math.min(18, size, tileHeight - 28));
-  }
 
   let measuredWidth = $state(0);
   const chartWidth = $derived(measuredWidth > 0 ? measuredWidth : 600);
@@ -110,7 +103,7 @@
                   fill={seriesPaint(uid, tile.style)}
                 />
                 {#if large}
-                  {@const fontSize = labelSize(tile.value, tileHeight)}
+                  {@const fontSize = treemapLabelSize(tile.value, total, tileHeight, labelScale)}
                   <Text value={tile.label} x={6} y={fontSize + 5} width={tileWidth - 12} truncate class="tile-label" style={`font-size: ${fontSize}px`} />
                   <Text value={formatValue(tile.value)} x={6} y={fontSize + 19} width={tileWidth - 12} truncate class="tile-value" />
                   {#if tile.meta}
