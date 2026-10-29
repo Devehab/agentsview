@@ -19,6 +19,7 @@ import (
 	"go.kenn.io/agentsview/internal/db"
 	"go.kenn.io/agentsview/internal/friction"
 	"go.kenn.io/agentsview/internal/friction/review"
+	"go.kenn.io/agentsview/internal/stringutil"
 	"go.kenn.io/agentsview/internal/timeutil"
 )
 
@@ -101,7 +102,22 @@ type frictionDigestResponse struct {
 	P0Alerts        []frictionP0Alert `json:"p0_alerts"`
 	// Patterns are the recurrence rows for this digest's findings.
 	Patterns []frictionPatternItem `json:"patterns"`
+	// Sessions describes each archived session the digest names, keyed by
+	// session ID, so readers can show a title instead of an opaque ID.
+	// Sessions no longer in the archive are absent.
+	Sessions map[string]frictionSession `json:"sessions"`
 }
+
+// frictionSession is the part of a session a digest reader needs to
+// recognize it. FirstMessage is cut to frictionSessionPreviewBytes.
+type frictionSession struct {
+	Agent        string `json:"agent"`
+	Project      string `json:"project"`
+	DisplayName  string `json:"display_name,omitempty"`
+	FirstMessage string `json:"first_message,omitempty"`
+}
+
+const frictionSessionPreviewBytes = 300
 
 // frictionSummary mirrors the stored summary JSON (friction.RenderSummaryJSON).
 type frictionSummary struct {
@@ -301,6 +317,43 @@ func frictionSignalItems(sigs []friction.Signal, base string) []frictionSignal {
 	return out
 }
 
+// frictionSessions looks up every session a digest's findings and P0 alerts
+// name. Diagnostic subjects are producer identities, not sessions.
+func (s *Server) frictionSessions(
+	ctx context.Context, sigs []friction.Signal, alerts map[string][]string,
+) (map[string]frictionSession, error) {
+	ids := make(map[string]struct{})
+	for _, sig := range sigs {
+		if cmp.Or(sig.SubjectKind, friction.SubjectSession) == friction.SubjectSession {
+			ids[sig.SubjectID] = struct{}{}
+		}
+	}
+	for _, subjects := range alerts {
+		for _, id := range subjects {
+			ids[id] = struct{}{}
+		}
+	}
+	out := make(map[string]frictionSession, len(ids))
+	for _, id := range slices.Sorted(maps.Keys(ids)) {
+		sess, err := s.db.GetSession(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("session %s: %w", id, err)
+		}
+		if sess == nil {
+			continue
+		}
+		info := frictionSession{Agent: sess.Agent, Project: sess.Project}
+		if sess.DisplayName != nil {
+			info.DisplayName = *sess.DisplayName
+		}
+		if sess.FirstMessage != nil {
+			info.FirstMessage = stringutil.SafeTruncate(*sess.FirstMessage, frictionSessionPreviewBytes)
+		}
+		out[id] = info
+	}
+	return out, nil
+}
+
 func frictionP0AlertItems(alerts map[string][]string) []frictionP0Alert {
 	out := make([]frictionP0Alert, 0, len(alerts))
 	for _, tool := range slices.Sorted(maps.Keys(alerts)) {
@@ -432,6 +485,10 @@ func (s *Server) humaGetFrictionDigest(
 		Signals:  frictionSignalItems(snap.Signals, s.frictionPublicURL()),
 		P0Alerts: frictionP0AlertItems(snap.P0Alerts),
 		Patterns: frictionPatternItems(patterns),
+	}
+	resp.Sessions, err = s.frictionSessions(ctx, snap.Signals, snap.P0Alerts)
+	if err != nil {
+		return nil, frictionStoreError("friction digest sessions", err)
 	}
 	if base := s.frictionPublicURL(); base != "" {
 		resp.WebURL = base + "/friction?date=" + url.QueryEscape(d.Date)

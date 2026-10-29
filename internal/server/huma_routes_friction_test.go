@@ -15,6 +15,7 @@ import (
 
 	"go.kenn.io/agentsview/internal/config"
 	"go.kenn.io/agentsview/internal/db"
+	"go.kenn.io/agentsview/internal/dbtest"
 	"go.kenn.io/agentsview/internal/duckdb"
 	"go.kenn.io/agentsview/internal/friction"
 	"go.kenn.io/agentsview/internal/friction/review"
@@ -50,6 +51,12 @@ type testFrictionDigest struct {
 	Patterns []struct {
 		Fingerprint string `json:"fingerprint"`
 	} `json:"patterns"`
+	Sessions map[string]struct {
+		Agent        string `json:"agent"`
+		Project      string `json:"project"`
+		DisplayName  string `json:"display_name"`
+		FirstMessage string `json:"first_message"`
+	} `json:"sessions"`
 }
 
 func frictionTestSnapshot(date string) review.Snapshot {
@@ -140,6 +147,22 @@ func TestFrictionDigestRoutes(t *testing.T) {
 		}
 		assert.ElementsMatch(t, []string{got.Signals[0].Fingerprint, got.Signals[1].Fingerprint}, fingerprints,
 			"only this digest's patterns")
+	})
+	t.Run("names_archived_sessions", func(t *testing.T) {
+		dbtest.SeedSession(t, te.db, "claude:s1", "project-a", func(s *db.Session) {
+			s.Agent = "claude"
+			s.FirstMessage = dbtest.Ptr("Fix the flaky login test " + strings.Repeat("x", 400))
+		})
+		dbtest.SeedSession(t, te.db, "claude:s2", "project-b", func(s *db.Session) { s.Agent = "claude" })
+		require.NoError(t, te.db.RenameSession(t.Context(), "claude:s2", dbtest.Ptr("Renamed session")))
+		got := decode[testFrictionDigest](t, te.get(t, "/base/api/v1/friction/digests/2026-09-14"))
+		require.Contains(t, got.Sessions, "claude:s1")
+		assert.Equal(t, "project-a", got.Sessions["claude:s1"].Project)
+		assert.True(t, strings.HasPrefix(got.Sessions["claude:s1"].FirstMessage, "Fix the flaky login test"))
+		assert.LessOrEqual(t, len(got.Sessions["claude:s1"].FirstMessage), 300)
+		assert.Equal(t, "Renamed session", got.Sessions["claude:s2"].DisplayName, "P0 alert subjects are named too")
+		assert.NotContains(t, got.Sessions, "claude:s3", "a session missing from the archive is left out")
+		assert.NotContains(t, got.Sessions, "run-7:ci_check", "diagnostic identities are not sessions")
 	})
 	t.Run("markdown", func(t *testing.T) {
 		w := te.get(t, "/base/api/v1/friction/digests/2026-09-14/md")

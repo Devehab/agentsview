@@ -5019,6 +5019,10 @@ components:
           type: integer
         rules_version:
           type: string
+        sessions:
+          additionalProperties:
+            $ref: "#/components/schemas/FrictionSession"
+          type: object
         sessions_scanned:
           format: int64
           type: integer
@@ -5045,6 +5049,7 @@ components:
         - signals
         - p0_alerts
         - patterns
+        - sessions
       type: object
     FrictionDigestsResponse:
       additionalProperties: false
@@ -5225,6 +5230,21 @@ components:
           type: array
       required:
         - reports
+      type: object
+    FrictionSession:
+      additionalProperties: false
+      properties:
+        agent:
+          type: string
+        display_name:
+          type: string
+        first_message:
+          type: string
+        project:
+          type: string
+      required:
+        - agent
+        - project
       type: object
     FrictionSignal:
       additionalProperties: false
