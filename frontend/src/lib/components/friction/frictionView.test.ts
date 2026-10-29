@@ -2,13 +2,15 @@ import { describe, expect, it } from "vite-plus/test";
 import type { FrictionPatternItem, FrictionSignal } from "../../api/generated/index.js";
 import {
   FRICTION_KINDS,
-  findingSummary,
+  codeSegments,
   groupSignals,
   headlinePatterns,
   interruptionRows,
+  sessionLabel,
   sessionLinkParams,
   signalDims,
   sortedP0,
+  withoutSubjectPrefix,
 } from "./frictionView.js";
 
 function sig(overrides: Partial<FrictionSignal> = {}): FrictionSignal {
@@ -115,42 +117,63 @@ describe("signalDims", () => {
   it.each([
     ["no dims", {}, []],
     [
-      "all dims in the Markdown prefix order",
+      "seat and machine, without the agent shown with the session",
       { seat: "seat-02", agent: "claude", machine: "laptop" },
-      ["seat:seat-02", "agent:claude", "machine:laptop"],
+      ["seat-02", "laptop"],
     ],
   ])("%s", (_name, dims, expected) => {
     expect(signalDims(sig(dims))).toEqual(expected);
   });
 });
 
-describe("findingSummary", () => {
+describe("sessionLabel", () => {
+  const session = (o: Record<string, string>) => ({ agent: "claude", project: "proj", ...o });
   it.each([
-    ["correction", sig({ kind: "correction", text: "no, stop" }), "no, stop"],
-    ["error", sig({ kind: "error", tool_name: "bash", text: "exit 1" }), "bash: exit 1"],
     [
-      "workaround",
-      sig({ kind: "workaround", label: "for now", text: "hardcode it for now" }),
-      "for now: hardcode it for now",
-    ],
-    ["deferral", sig({ kind: "deferral", label: "next session", text: "" }), "next session"],
-    [
-      "pattern",
-      sig({
-        kind: "pattern",
-        label: "retry_loop",
-        evidence: "`bash` x3 identical arguments 01:35-01:54",
-      }),
-      "retry_loop: `bash` x3 identical arguments 01:35-01:54",
+      "custom name wins",
+      { s: session({ display_name: "Login fix", first_message: "hi" }) },
+      "Login fix",
     ],
     [
-      "frustration",
-      sig({ kind: "frustration", text: "this is still broken" }),
-      "this is still broken",
+      "opening message, whitespace collapsed",
+      { s: session({ first_message: "Fix the\n  flaky test" }) },
+      "Fix the flaky test",
     ],
-    ["interruption", sig({ kind: "interruption", text: "" }), ""],
-  ])("%s", (_name, signal, expected) => {
-    expect(findingSummary(signal)).toBe(expected);
+    [
+      "long opening message is shortened",
+      { s: session({ first_message: "x".repeat(200) }) },
+      `${"x".repeat(90)}…`,
+    ],
+    ["project when there is no message", { s: session({}) }, "proj"],
+    ["raw id for a session missing from the archive", {}, "s"],
+  ])("%s", (_name, sessions, expected) => {
+    expect(sessionLabel("s", sessions)).toBe(expected);
+  });
+});
+
+describe("codeSegments", () => {
+  it.each([
+    ["plain text", "x3 identical", [{ text: "x3 identical", code: false }]],
+    [
+      "backticked spans become code",
+      "`Bash` x4 identical arguments",
+      [
+        { text: "Bash", code: true },
+        { text: " x4 identical arguments", code: false },
+      ],
+    ],
+    ["an unmatched backtick stays literal", "a ` b", [{ text: "a ` b", code: false }]],
+  ])("%s", (_name, text, expected) => {
+    expect(codeSegments(text)).toEqual(expected);
+  });
+});
+
+describe("withoutSubjectPrefix", () => {
+  it.each([
+    ["drops the repeated identity", "run-7:ci: nightly failed", "nightly failed"],
+    ["keeps other text", "nightly failed", "nightly failed"],
+  ])("%s", (_name, text, expected) => {
+    expect(withoutSubjectPrefix(text, "run-7:ci")).toBe(expected);
   });
 });
 

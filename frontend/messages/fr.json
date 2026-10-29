@@ -2985,7 +2985,6 @@
   "appearance_message_colors_preview_user": "Pourquoi le test de date échoue-t-il ?",
   "appearance_message_colors_preview_assistant": "Le jeu de test attend l’UTC. Je l’ai corrigé.",
   "nav_friction": "Journal des frictions",
-  "friction_page_help_intro": "Chaque constat est une heuristique déterministe calculée à partir des sessions enregistrées, pas une vérité absolue. Aucun modèle ne décide de ce qui compte comme une friction.",
   "friction_page_help_docs": "Fonctionnement du journal des frictions",
   "friction_page_refresh": "Actualiser le journal des frictions",
   "friction_date_label": "Date du résumé",
@@ -3016,8 +3015,45 @@
   "friction_load_error": "Impossible de charger le journal des frictions",
   "friction_retry": "Réessayer",
   "friction_digest_heading": "Journal des frictions — {date}",
+  "friction_digest_built": "Généré le {when} ({timezone})",
+  "friction_p0_failed": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local countNumber = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "a échoué dans {countNumber} session",
+        "countPlural=other": "a échoué dans {countNumber} sessions"
+      }
+    }
+  ],
+  "friction_clean_title": "Aucune friction trouvée",
+  "friction_clean_hint": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local countNumber = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Rien n’a été signalé dans la {countNumber} session analysée.",
+        "countPlural=other": "Rien n’a été signalé dans les {countNumber} sessions analysées."
+      }
+    }
+  ],
+  "friction_clean_no_sessions": "Aucune session n’a été active ce jour-là.",
+  "friction_deferral_said": "Travail reporté : « {phrase} »",
+  "friction_pattern_retry_loop": "Boucle de nouvelles tentatives",
+  "friction_pattern_runaway_loop": "Boucle d’outils incontrôlée",
+  "friction_pattern_edit_churn": "Modifications répétées",
+  "friction_pattern_mid_task_compaction": "Compaction en cours de tâche",
+  "friction_pattern_context_pressure": "Pression sur le contexte",
+  "friction_pattern_iteration_runaway": "Longue exécution sans message de l’utilisateur",
   "friction_digest_missing": "Aucun résumé n'existe pour le {date}.",
-  "friction_digest_meta": "{timezone} · révision {revision}",
   "friction_scanned": [
     {
       "declarations": [
@@ -3032,27 +3068,10 @@
       }
     }
   ],
-  "friction_headline_title": "À la une",
-  "friction_p0_title": "Alertes P0",
-  "friction_p0_none": "Aucune alerte P0.",
-  "friction_p0_item": [
-    {
-      "declarations": [
-        "input count",
-        "input tool",
-        "local countPlural = count: plural",
-        "local countNumber = count: number"
-      ],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "{tool} a échoué dans {countNumber} session distincte",
-        "countPlural=other": "{tool} a échoué dans {countNumber} sessions distinctes"
-      }
-    }
-  ],
+  "friction_headline_title": "À examiner",
+  "friction_p0_title": "Outils en échec dans plusieurs sessions",
   "friction_patterns_new": "Nouveaux motifs",
   "friction_patterns_recurring": "Motifs récurrents",
-  "friction_patterns_none": "Aucun motif dans ce résumé.",
   "friction_pattern_occurrences": [
     {
       "declarations": [
@@ -3087,15 +3106,8 @@
   "friction_section_workarounds": "Contournements",
   "friction_section_deferrals": "Reports",
   "friction_section_patterns": "Motifs",
-  "friction_none_corrections": "Aucune correction détectée.",
-  "friction_none_errors": "Aucune erreur détectée.",
-  "friction_none_workarounds": "Aucun contournement détecté.",
-  "friction_none_deferrals": "Aucun report détecté.",
-  "friction_none_patterns": "Aucun motif détecté.",
   "friction_section_frustration": "Frustration",
   "friction_section_interruptions": "Interruptions",
-  "friction_none_frustration": "Aucune frustration détectée.",
-  "friction_none_interruptions": "Aucune interruption détectée.",
   "friction_interruption_count": [
     {
       "declarations": [

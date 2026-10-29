@@ -10,10 +10,16 @@
   import FrictionHeadline from "./FrictionHeadline.svelte";
   import FrictionMarkdownPanel from "./FrictionMarkdownPanel.svelte";
   import FrictionSignalSection from "./FrictionSignalSection.svelte";
+  import FrictionSummaryStrip from "./FrictionSummaryStrip.svelte";
   import { groupSignals } from "./frictionView.js";
+
+  const DOCS_URL = "https://agentsview.io/docs/configuration/#friction-log";
 
   const digest = $derived(friction.digest);
   const sections = $derived(groupSignals(digest?.signals ?? []));
+  const flagged = $derived(
+    (digest?.signals?.length ?? 0) > 0 || (digest?.p0_alerts?.length ?? 0) > 0,
+  );
   const busy = $derived(friction.loading.dates || friction.loading.digest);
   // friction_available means the server has a friction runner, which can
   // build even where the session archive is read-only, as on pg serve.
@@ -129,18 +135,6 @@
   </header>
 
   <main class="content" aria-busy={busy}>
-    <p class="friction-help">
-      {m.friction_page_help_intro()}
-      <a
-        href="https://agentsview.io/docs/configuration/#friction-log"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="friction-help-link"
-      >
-        {m.friction_page_help_docs()}
-      </a>
-    </p>
-
     {#if friction.lastBuildWritten !== null}
       <div class="build-status" role="status">
         {friction.lastBuildWritten > 0
@@ -190,23 +184,43 @@
       <section class="digest-meta">
         <h1>{m.friction_digest_heading({ date: digest.date })}</h1>
         <p>
-          {m.friction_digest_meta({ timezone: digest.timezone, revision: digest.revision })}
-          · {m.friction_scanned({ count: digest.sessions_scanned })}
-          · {formatDateTime(digest.built_at, { dateStyle: "medium", timeStyle: "short" })}
+          {m.friction_scanned({ count: digest.sessions_scanned })}
+          · {m.friction_digest_built({
+            when: formatDateTime(digest.built_at, { dateStyle: "medium", timeStyle: "short" }),
+            timezone: digest.timezone,
+          })}
+          ·
+          <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" class="docs-link">
+            {m.friction_page_help_docs()}
+          </a>
         </p>
       </section>
 
-      <FrictionHeadline
-        date={digest.date}
-        p0Alerts={digest.p0_alerts}
-        signals={digest.signals ?? []}
-        patterns={digest.patterns ?? []}
-      />
+      {#if flagged}
+        <FrictionSummaryStrip {sections} />
 
-      {#each sections as section (section.kind)}
-        <FrictionSignalSection {section} />
-      {/each}
+        <FrictionHeadline
+          date={digest.date}
+          p0Alerts={digest.p0_alerts}
+          signals={digest.signals ?? []}
+          patterns={digest.patterns ?? []}
+          sessions={digest.sessions}
+        />
 
+        {#each sections as section (section.kind)}
+          {#if section.signals.length > 0}
+            <FrictionSignalSection {section} sessions={digest.sessions} />
+          {/if}
+        {/each}
+      {:else}
+        <EmptyState title={m.friction_clean_title()}>
+          <p class="empty-hint">
+            {digest.sessions_scanned > 0
+              ? m.friction_clean_hint({ count: digest.sessions_scanned })
+              : m.friction_clean_no_sessions()}
+          </p>
+        </EmptyState>
+      {/if}
 
       <FrictionMarkdownPanel date={digest.date} />
     {/if}
@@ -252,13 +266,7 @@
     gap: var(--space-6);
     max-width: 1100px;
   }
-  .friction-help {
-    margin: 0;
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1.4;
-  }
-  .friction-help-link {
+  .docs-link {
     color: var(--accent-blue);
   }
   .digest-meta h1 {

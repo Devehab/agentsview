@@ -1,8 +1,10 @@
 import type {
   FrictionP0Alert,
   FrictionPatternItem,
+  FrictionSession,
   FrictionSignal,
 } from "../../api/generated/index.js";
+import { normalizeMessagePreview } from "../../utils/messages.js";
 
 // Section order of the rendered Markdown digest (friction.RenderMarkdown).
 export const FRICTION_KINDS = [
@@ -69,38 +71,55 @@ export function sessionLinkParams(target: {
   return target.message_ordinal == null ? {} : { msg: String(target.message_ordinal) };
 }
 
-// Mirrors the Markdown digest's dimension prefix: seat, agent, machine.
+// Producer dimensions that say who or where a finding came from. The
+// session's agent is shown with the session, so it is not repeated here.
 // Values arrive display-sanitized from the server.
-export function signalDims(signal: Pick<FrictionSignal, "seat" | "agent" | "machine">): string[] {
+export function signalDims(signal: Pick<FrictionSignal, "seat" | "machine">): string[] {
   const dims: string[] = [];
-  if (signal.seat) dims.push(`seat:${signal.seat}`);
-  if (signal.agent) dims.push(`agent:${signal.agent}`);
-  if (signal.machine) dims.push(`machine:${signal.machine}`);
+  if (signal.seat) dims.push(signal.seat);
+  if (signal.machine) dims.push(signal.machine);
   return dims;
 }
 
-export function findingSummary(f: {
-  kind: string;
-  label: string;
-  tool_name: string;
-  text: string;
-  evidence: string;
-}): string {
-  switch (f.kind) {
-    case "error":
-      return `${f.tool_name}: ${f.text}`;
-    case "workaround":
-      return `${f.label}: ${f.text}`;
-    case "deferral":
-      return f.label;
-    case "pattern":
-      return `${f.label}: ${f.evidence}`;
-    case "interruption":
-      return "";
-    default:
-      // correction and frustration carry their context in text.
-      return f.text;
+export type FrictionSessions = Record<string, FrictionSession>;
+
+const SESSION_LABEL_CHARS = 90;
+
+// sessionLabel names a session the way the sidebar does: its custom name,
+// else the opening message, else its project. The raw ID is the last resort,
+// for sessions no longer in the archive.
+export function sessionLabel(id: string, sessions: FrictionSessions | null | undefined): string {
+  const info = sessions?.[id];
+  if (!info) return id;
+  if (info.display_name) return info.display_name;
+  const preview = normalizeMessagePreview(info.first_message).replace(/\s+/g, " ").trim();
+  if (preview) {
+    return preview.length > SESSION_LABEL_CHARS
+      ? `${preview.slice(0, SESSION_LABEL_CHARS).trimEnd()}…`
+      : preview;
   }
+  return info.project || id;
+}
+
+export interface TextSegment {
+  text: string;
+  code: boolean;
+}
+
+// codeSegments splits detector text on backticks so `tool` spans render as
+// code. An unmatched backtick stays literal.
+export function codeSegments(text: string): TextSegment[] {
+  const parts = text.split("`");
+  if (parts.length % 2 === 0) return [{ text, code: false }];
+  return parts
+    .map((part, i) => ({ text: part, code: i % 2 === 1 }))
+    .filter((segment) => segment.text !== "");
+}
+
+// Producers prefix diagnostic text with the identity the row already shows.
+export function withoutSubjectPrefix(text: string, subjectId: string): string {
+  const prefix = `${subjectId}: `;
+  return text.startsWith(prefix) ? text.slice(prefix.length) : text;
 }
 
 export interface HeadlinePattern extends FrictionPatternItem {

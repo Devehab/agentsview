@@ -2875,7 +2875,6 @@
   "appearance_message_colors_preview_user": "날짜 테스트가 왜 실패하나요?",
   "appearance_message_colors_preview_assistant": "픽스처가 UTC를 기대해서 수정했습니다.",
   "nav_friction": "마찰 로그",
-  "friction_page_help_intro": "모든 발견 항목은 저장된 세션에서 계산한 결정적 휴리스틱이며 정답이 아닙니다. 무엇을 마찰로 볼지 모델이 결정하지 않습니다.",
   "friction_page_help_docs": "마찰 로그 작동 방식",
   "friction_page_refresh": "마찰 로그 새로 고침",
   "friction_date_label": "다이제스트 날짜",
@@ -2903,8 +2902,43 @@
   "friction_load_error": "마찰 로그를 불러오지 못했습니다",
   "friction_retry": "다시 시도",
   "friction_digest_heading": "마찰 로그 — {date}",
+  "friction_digest_built": "{when}에 생성됨 ({timezone})",
+  "friction_p0_failed": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local countNumber = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=other": "{countNumber}개 세션에서 실패"
+      }
+    }
+  ],
+  "friction_clean_title": "마찰이 없습니다",
+  "friction_clean_hint": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local countNumber = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=other": "스캔한 {countNumber}개 세션에서 표시된 항목이 없습니다."
+      }
+    }
+  ],
+  "friction_clean_no_sessions": "이날 활성 세션이 없었습니다.",
+  "friction_deferral_said": "작업을 미룸: “{phrase}”",
+  "friction_pattern_retry_loop": "재시도 루프",
+  "friction_pattern_runaway_loop": "폭주한 도구 루프",
+  "friction_pattern_edit_churn": "반복 편집",
+  "friction_pattern_mid_task_compaction": "작업 중 컨텍스트 압축",
+  "friction_pattern_context_pressure": "컨텍스트 압박",
+  "friction_pattern_iteration_runaway": "사용자 입력 없는 장시간 실행",
   "friction_digest_missing": "{date} 다이제스트가 없습니다.",
-  "friction_digest_meta": "{timezone} · 리비전 {revision}",
   "friction_scanned": [
     {
       "declarations": [
@@ -2916,26 +2950,10 @@
       "match": { "countPlural=other": "세션 {countNumber}개 검사" }
     }
   ],
-  "friction_headline_title": "주요 내용",
-  "friction_p0_title": "P0 경고",
-  "friction_p0_none": "P0 경고가 없습니다.",
-  "friction_p0_item": [
-    {
-      "declarations": [
-        "input count",
-        "input tool",
-        "local countPlural = count: plural",
-        "local countNumber = count: number"
-      ],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=other": "{tool}이(가) 서로 다른 세션 {countNumber}개에서 실패했습니다"
-      }
-    }
-  ],
+  "friction_headline_title": "확인 필요",
+  "friction_p0_title": "여러 세션에서 실패한 도구",
   "friction_patterns_new": "새 패턴",
   "friction_patterns_recurring": "반복 패턴",
-  "friction_patterns_none": "이 다이제스트에 패턴이 없습니다.",
   "friction_pattern_occurrences": [
     {
       "declarations": [
@@ -2964,15 +2982,8 @@
   "friction_section_workarounds": "임시 해결책",
   "friction_section_deferrals": "미룬 작업",
   "friction_section_patterns": "패턴",
-  "friction_none_corrections": "감지된 수정 지시가 없습니다.",
-  "friction_none_errors": "감지된 오류가 없습니다.",
-  "friction_none_workarounds": "감지된 임시 해결책이 없습니다.",
-  "friction_none_deferrals": "감지된 미룬 작업이 없습니다.",
-  "friction_none_patterns": "감지된 패턴이 없습니다.",
   "friction_section_frustration": "좌절",
   "friction_section_interruptions": "중단",
-  "friction_none_frustration": "감지된 좌절이 없습니다.",
-  "friction_none_interruptions": "감지된 중단이 없습니다.",
   "friction_interruption_count": [
     {
       "declarations": [

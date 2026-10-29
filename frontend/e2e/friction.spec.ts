@@ -107,7 +107,11 @@ const LATEST_DIGEST = digest(DATE, [
     message_ordinal: 2,
   }),
 ]);
-const OLDER_DIGEST = digest(OLDER, []);
+const OLDER_DIGEST = {
+  ...digest(OLDER, []),
+  p0_alerts: [],
+  summary: { ...digest(OLDER, []).summary, p0_alerts: {} },
+};
 
 const MARKDOWN = [
   "---",
@@ -186,11 +190,13 @@ test.describe("Friction Log", () => {
     await page.goto("/friction");
 
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Friction Log — ${DATE}`);
-    await expect(page.getByText("bash failed in 3 distinct sessions")).toBeVisible();
+    const attention = page.locator(".friction-headline");
+    await expect(attention).toContainText("Tools failing across sessions");
+    await expect(attention).toContainText("failed in 3 sessions");
 
-    const corrections = page.locator('section[aria-labelledby="friction-section-correction"]');
+    const corrections = page.locator("section#friction-section-correction");
     await expect(corrections).toContainText("no, use the other flag");
-    await corrections.locator("a.subject-link").first().click();
+    await corrections.locator("a.session-link").first().click();
 
     await expect(page).toHaveURL(new RegExp(`/sessions/${SESSION_ID}\\?msg=${ORDINAL}$`));
     await expect(page.locator(".message-list-scroll")).toHaveAttribute(
@@ -216,9 +222,7 @@ test.describe("Friction Log", () => {
     await page.getByRole("button", { name: "Previous digest" }).click();
     await expect(page).toHaveURL(new RegExp(`/friction\\?date=${OLDER}$`));
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Friction Log — ${OLDER}`);
-    await expect(
-      page.locator('section[aria-labelledby="friction-section-correction"]'),
-    ).toContainText("No corrections detected.");
+    await expect(page.getByText("No friction found")).toBeVisible();
 
     await page.reload();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Friction Log — ${OLDER}`);
@@ -228,19 +232,19 @@ test.describe("Friction Log", () => {
     page,
   }) => {
     await page.goto("/friction");
-    await expect(
-      page.locator('section[aria-labelledby="friction-section-frustration"]'),
-    ).toContainText("this is still broken");
-    const interruptions = page.locator('section[aria-labelledby="friction-section-interruption"]');
+    await expect(page.locator("section#friction-section-frustration")).toContainText(
+      "this is still broken",
+    );
+    const interruptions = page.locator("section#friction-section-interruption");
     await expect(interruptions).toContainText("1 interruption");
-    await expect(interruptions.locator("a.subject-link")).toHaveAttribute(
+    await expect(interruptions.locator("a.session-link")).toHaveAttribute(
       "href",
       `/sessions/${SESSION_ID}?msg=2`,
     );
     const diagnostic = page
-      .locator('section[aria-labelledby="friction-section-error"] li')
+      .locator("section#friction-section-error li")
       .filter({ hasText: "nightly-42:ci_nightly" });
-    await expect(diagnostic.locator("code.subject")).toHaveText("nightly-42:ci_nightly");
+    await expect(diagnostic.locator("code.identity")).toHaveText("nightly-42:ci_nightly");
     await expect(diagnostic.locator("a")).toHaveCount(0);
   });
 

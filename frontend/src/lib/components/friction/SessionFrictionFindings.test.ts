@@ -119,8 +119,10 @@ describe("SessionFrictionFindings", () => {
     const rows = document.querySelectorAll(".finding-row");
     expect(rows).toHaveLength(4);
     expect(rows[0]!.querySelector(".kind")?.textContent).toBe("Correction");
-    expect(rows[0]!.textContent).toContain("correction.coding");
+    expect(rows[0]!.textContent).not.toContain("correction.coding");
     expect(rows[0]!.textContent).toContain("no, use the other flag");
+    expect(rows[1]!.textContent).toContain("Retry loop");
+    expect(rows[1]!.querySelector("code")?.textContent).toBe("bash");
     expect(rows[1]!.querySelector("button")).toBeNull();
     expect(rows[2]!.querySelector(".kind")?.textContent).toBe("Frustration");
     expect(rows[2]!.textContent).toContain("this is still broken");

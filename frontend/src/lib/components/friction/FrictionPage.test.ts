@@ -70,6 +70,14 @@ function makeDigest(signals: FrictionSignal[]): FrictionDigestResponse {
     },
     signals,
     p0_alerts: [{ tool: "bash", subject_ids: ["s-a", "s-b", "s-c"] }],
+    sessions: {
+      "test-session-medium-8": {
+        agent: "claude",
+        project: "proj-a",
+        first_message: "Fix the login\n  redirect loop",
+      },
+      "s-a": { agent: "codex", project: "proj-b", display_name: "Release prep" },
+    },
   } as unknown as FrictionDigestResponse;
 }
 
@@ -227,54 +235,83 @@ describe("FrictionPage", () => {
   }
 
   function section(kind: string): HTMLElement {
-    const el = document.querySelector<HTMLElement>(
-      `section[aria-labelledby="friction-section-${kind}"]`,
-    );
+    const el = document.querySelector<HTMLElement>(`section#friction-section-${kind}`);
     expect(el, `section ${kind}`).not.toBeNull();
     return el!;
   }
 
-  it("renders summary first: heading, P0 alerts, then ranked patterns", async () => {
+  function sectionIds(): string[] {
+    return Array.from(document.querySelectorAll("section[id^='friction-section-']")).map(
+      (el) => el.id,
+    );
+  }
+
+  it("leads with counts, then what needs attention, then the findings", async () => {
     await render();
-    const text = document.body.textContent ?? "";
     expect(document.querySelector("h1")?.textContent).toBe("Friction Log — 2026-09-21");
-    expect(text).toContain("bash failed in 3 distinct sessions");
-    expect(text).toContain("s-a, s-b, s-c");
+    const tiles = Array.from(document.querySelectorAll(".summary-strip .tile")).map((t) =>
+      t.textContent?.replace(/\s+/g, " ").trim(),
+    );
+    expect(tiles).toEqual([
+      "1 Corrections",
+      "2 Errors",
+      "0 Workarounds",
+      "0 Deferrals",
+      "1 Patterns",
+      "1 Frustration",
+      "2 Interruptions",
+    ]);
     const headline = document.querySelector(".friction-headline")!;
+    expect(headline.textContent).toContain("Tools failing across sessions");
+    expect(headline.textContent).toContain("failed in 3 sessions");
     expect(headline.textContent).toContain("New patterns");
     expect(headline.textContent).toContain("Recurring patterns");
     expect(headline.textContent).toContain("7 occurrences");
-    const firstSection = document.querySelector("section[aria-labelledby^='friction-section-']");
+    const firstSection = document.querySelector("section[id^='friction-section-']");
     expect(
       headline.compareDocumentPosition(firstSection!) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 
-  it("renders all seven kinds in digest order with placeholders when empty", async () => {
+  it("names P0 sessions and falls back to the raw id for sessions not in the archive", async () => {
     await render();
-    const order = Array.from(
-      document.querySelectorAll("section[aria-labelledby^='friction-section-']"),
-    ).map((el) => el.getAttribute("aria-labelledby"));
-    expect(order).toEqual([
+    const links = Array.from(
+      document.querySelectorAll<HTMLAnchorElement>(".alert-sessions a.session-link"),
+    ).map((a) => a.textContent?.trim());
+    expect(links).toEqual(["Release prep", "s-b", "s-c"]);
+  });
+
+  it("lists only kinds with findings, in digest order", async () => {
+    await render();
+    expect(sectionIds()).toEqual([
       "friction-section-correction",
       "friction-section-error",
-      "friction-section-workaround",
-      "friction-section-deferral",
       "friction-section-pattern",
       "friction-section-frustration",
       "friction-section-interruption",
     ]);
-    expect(section("workaround").textContent).toContain("No workarounds detected.");
-    expect(section("deferral").textContent).toContain("No deferrals detected.");
     expect(section("error").querySelectorAll("li")).toHaveLength(2);
     expect(section("frustration").textContent).toContain("this is still broken");
   });
 
-  it("shows the frustration placeholder when a digest has none", async () => {
-    friction.digest = makeDigest([correction]);
+  it("shows one empty state when nothing was flagged", async () => {
+    friction.digest = { ...makeDigest([]), p0_alerts: [] };
     await render();
-    expect(section("frustration").textContent).toContain("No frustration detected.");
-    expect(section("interruption").textContent).toContain("No interruptions detected.");
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("No friction found");
+    expect(text).toContain("Nothing was flagged in the 3 sessions scanned.");
+    expect(sectionIds()).toEqual([]);
+    expect(document.querySelector(".summary-strip")).toBeNull();
+  });
+
+  it("names a finding's session by its opening message and project", async () => {
+    await render();
+    const row = section("correction").querySelector("li")!;
+    expect(row.querySelector("a.session-link")?.textContent?.trim()).toBe(
+      "Fix the login redirect loop",
+    );
+    const meta = Array.from(row.querySelectorAll(".meta-part")).map((el) => el.textContent);
+    expect(meta).toEqual(["proj-a", "claude", "Message 3", "seat-02"]);
   });
 
   it("collapses interruptions to one counted row per session linked to the first", async () => {
@@ -282,7 +319,7 @@ describe("FrictionPage", () => {
     const rows = section("interruption").querySelectorAll("li");
     expect(rows).toHaveLength(1);
     expect(rows[0]!.textContent).toContain("2 interruptions");
-    expect(rows[0]!.querySelector("a.subject-link")?.getAttribute("href")).toBe(
+    expect(rows[0]!.querySelector("a.session-link")?.getAttribute("href")).toBe(
       "/sessions/test-session-medium-8?msg=2",
     );
   });
@@ -291,7 +328,7 @@ describe("FrictionPage", () => {
     const navigate = vi.spyOn(router, "navigateToSession").mockImplementation(() => {});
     const scroll = vi.spyOn(ui, "scrollToOrdinal").mockImplementation(() => {});
     await render();
-    const link = section("correction").querySelector<HTMLAnchorElement>("a.subject-link")!;
+    const link = section("correction").querySelector<HTMLAnchorElement>("a.session-link")!;
     expect(link.getAttribute("href")).toBe("/sessions/test-session-medium-8?msg=3");
     const event = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
     link.dispatchEvent(event);
@@ -303,7 +340,7 @@ describe("FrictionPage", () => {
   it("leaves modifier clicks to the browser", async () => {
     const navigate = vi.spyOn(router, "navigateToSession").mockImplementation(() => {});
     await render();
-    const link = section("correction").querySelector<HTMLAnchorElement>("a.subject-link")!;
+    const link = section("correction").querySelector<HTMLAnchorElement>("a.session-link")!;
     let prevented: boolean | null = null;
     const observe = (e: Event) => {
       prevented = e.defaultPrevented;
@@ -318,41 +355,43 @@ describe("FrictionPage", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it("links pattern rows to the session without a message target", async () => {
+  it("names patterns in plain language and renders backticked tools as code", async () => {
     await render();
-    const link = section("pattern").querySelector<HTMLAnchorElement>("a.subject-link")!;
-    expect(link.getAttribute("href")).toBe("/sessions/test-session-medium-8");
+    const row = section("pattern").querySelector("li")!;
+    expect(row.textContent).toContain("Retry loop");
+    expect(row.textContent).not.toContain("retry_loop");
+    expect(row.textContent).not.toContain("`");
+    expect(row.querySelector(".finding code")?.textContent).toBe("bash");
+    expect(row.querySelector("a.session-link")?.getAttribute("href")).toBe(
+      "/sessions/test-session-medium-8",
+    );
   });
 
-  it("renders diagnostic subjects as plain text without a session link", async () => {
+  it("renders diagnostic subjects once, as plain text without a session link", async () => {
     await render();
     const rows = Array.from(section("error").querySelectorAll("li"));
-    const diagnostic = rows.find((r) => r.textContent?.includes("nightly-42:ci_nightly"))!;
+    const diagnostic = rows.find((r) => r.textContent?.includes("nightly check failed"))!;
     expect(diagnostic.querySelector("a")).toBeNull();
-    expect(diagnostic.querySelector("code.subject")?.textContent).toBe("nightly-42:ci_nightly");
+    expect(diagnostic.querySelector("code.identity")?.textContent).toBe("nightly-42:ci_nightly");
+    expect(diagnostic.textContent?.split("nightly-42:ci_nightly")).toHaveLength(2);
   });
 
   it("links headline patterns to their first occurrence in this digest", async () => {
     await render();
     const headline = document.querySelector(".friction-headline")!;
-    const recurring = Array.from(
-      headline.querySelectorAll<HTMLAnchorElement>("a.pattern-title"),
-    ).find((a) => a.textContent?.includes("command not found"))!;
-    expect(recurring.getAttribute("href")).toBe("/sessions/test-session-medium-8?msg=5");
+    const recurring = Array.from(headline.querySelectorAll(".headline-row")).find((row) =>
+      row.textContent?.includes("command not found"),
+    )!;
+    expect(recurring.textContent).not.toContain("[friction/");
+    expect(recurring.querySelector("a.session-link")?.getAttribute("href")).toBe(
+      "/sessions/test-session-medium-8?msg=5",
+    );
   });
 
   it("renders hostile transcript text as text", async () => {
     await render();
     expect(document.querySelector(".friction-page img")).toBeNull();
     expect(section("correction").textContent).toContain("<img src=x onerror=alert(1)>");
-  });
-
-  it("shows dims in the Markdown digest's order", async () => {
-    await render();
-    const dims = Array.from(section("correction").querySelectorAll(".dim")).map(
-      (d) => d.textContent,
-    );
-    expect(dims).toEqual(["seat:seat-02"]);
   });
 
   it("offers Build now only when the server accepts builds from this page", async () => {

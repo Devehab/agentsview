@@ -2869,7 +2869,6 @@
   "appearance_message_colors_preview_user": "日期测试为什么会失败？",
   "appearance_message_colors_preview_assistant": "测试夹具要求 UTC，我已更新。",
   "nav_friction": "摩擦日志",
-  "friction_page_help_intro": "每条发现都是根据已存储会话计算出的确定性启发式结果，并非绝对事实。什么算作摩擦不由任何模型决定。",
   "friction_page_help_docs": "摩擦日志的工作原理",
   "friction_page_refresh": "刷新摩擦日志",
   "friction_date_label": "摘要日期",
@@ -2897,8 +2896,43 @@
   "friction_load_error": "无法加载摩擦日志",
   "friction_retry": "重试",
   "friction_digest_heading": "摩擦日志 — {date}",
+  "friction_digest_built": "生成于 {when}（{timezone}）",
+  "friction_p0_failed": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local countNumber = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=other": "在 {countNumber} 个会话中失败"
+      }
+    }
+  ],
+  "friction_clean_title": "未发现摩擦",
+  "friction_clean_hint": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local countNumber = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=other": "扫描的 {countNumber} 个会话中没有标记任何问题。"
+      }
+    }
+  ],
+  "friction_clean_no_sessions": "这一天没有活跃的会话。",
+  "friction_deferral_said": "推迟了工作：“{phrase}”",
+  "friction_pattern_retry_loop": "重试循环",
+  "friction_pattern_runaway_loop": "失控的工具循环",
+  "friction_pattern_edit_churn": "反复编辑",
+  "friction_pattern_mid_task_compaction": "任务中途压缩上下文",
+  "friction_pattern_context_pressure": "上下文压力",
+  "friction_pattern_iteration_runaway": "长时间运行且无用户输入",
   "friction_digest_missing": "{date} 没有摘要。",
-  "friction_digest_meta": "{timezone} · 修订 {revision}",
   "friction_scanned": [
     {
       "declarations": [
@@ -2910,24 +2944,10 @@
       "match": { "countPlural=other": "已扫描 {countNumber} 个会话" }
     }
   ],
-  "friction_headline_title": "要点",
-  "friction_p0_title": "P0 警报",
-  "friction_p0_none": "没有 P0 警报。",
-  "friction_p0_item": [
-    {
-      "declarations": [
-        "input count",
-        "input tool",
-        "local countPlural = count: plural",
-        "local countNumber = count: number"
-      ],
-      "selectors": ["countPlural"],
-      "match": { "countPlural=other": "{tool} 在 {countNumber} 个不同会话中失败" }
-    }
-  ],
+  "friction_headline_title": "需要关注",
+  "friction_p0_title": "在多个会话中失败的工具",
   "friction_patterns_new": "新模式",
   "friction_patterns_recurring": "反复出现的模式",
-  "friction_patterns_none": "此摘要中没有模式。",
   "friction_pattern_occurrences": [
     {
       "declarations": [
@@ -2956,15 +2976,8 @@
   "friction_section_workarounds": "临时方案",
   "friction_section_deferrals": "推迟事项",
   "friction_section_patterns": "模式",
-  "friction_none_corrections": "未检测到纠正。",
-  "friction_none_errors": "未检测到错误。",
-  "friction_none_workarounds": "未检测到临时方案。",
-  "friction_none_deferrals": "未检测到推迟事项。",
-  "friction_none_patterns": "未检测到模式。",
   "friction_section_frustration": "挫败",
   "friction_section_interruptions": "中断",
-  "friction_none_frustration": "未检测到挫败。",
-  "friction_none_interruptions": "未检测到中断。",
   "friction_interruption_count": [
     {
       "declarations": [

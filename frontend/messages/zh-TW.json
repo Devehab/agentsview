@@ -2872,7 +2872,6 @@
   "appearance_message_colors_preview_user": "日期測試為什麼會失敗？",
   "appearance_message_colors_preview_assistant": "測試夾具要求 UTC，我已更新。",
   "nav_friction": "摩擦日誌",
-  "friction_page_help_intro": "每項發現都是根據已儲存對話計算出的確定性啟發式結果，並非絕對事實。什麼算是摩擦不由任何模型決定。",
   "friction_page_help_docs": "摩擦日誌的運作方式",
   "friction_page_refresh": "重新整理摩擦日誌",
   "friction_date_label": "摘要日期",
@@ -2900,8 +2899,43 @@
   "friction_load_error": "無法載入摩擦日誌",
   "friction_retry": "重試",
   "friction_digest_heading": "摩擦日誌 — {date}",
+  "friction_digest_built": "產生於 {when}（{timezone}）",
+  "friction_p0_failed": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local countNumber = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=other": "在 {countNumber} 個工作階段中失敗"
+      }
+    }
+  ],
+  "friction_clean_title": "未發現摩擦",
+  "friction_clean_hint": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local countNumber = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=other": "掃描的 {countNumber} 個工作階段中沒有標記任何問題。"
+      }
+    }
+  ],
+  "friction_clean_no_sessions": "這一天沒有活躍的工作階段。",
+  "friction_deferral_said": "推遲了工作：「{phrase}」",
+  "friction_pattern_retry_loop": "重試迴圈",
+  "friction_pattern_runaway_loop": "失控的工具迴圈",
+  "friction_pattern_edit_churn": "反覆編輯",
+  "friction_pattern_mid_task_compaction": "任務中途壓縮上下文",
+  "friction_pattern_context_pressure": "上下文壓力",
+  "friction_pattern_iteration_runaway": "長時間執行且無使用者輸入",
   "friction_digest_missing": "{date} 沒有摘要。",
-  "friction_digest_meta": "{timezone} · 修訂 {revision}",
   "friction_scanned": [
     {
       "declarations": [
@@ -2913,24 +2947,10 @@
       "match": { "countPlural=other": "已掃描 {countNumber} 個對話" }
     }
   ],
-  "friction_headline_title": "重點",
-  "friction_p0_title": "P0 警示",
-  "friction_p0_none": "沒有 P0 警示。",
-  "friction_p0_item": [
-    {
-      "declarations": [
-        "input count",
-        "input tool",
-        "local countPlural = count: plural",
-        "local countNumber = count: number"
-      ],
-      "selectors": ["countPlural"],
-      "match": { "countPlural=other": "{tool} 在 {countNumber} 個不同的對話中失敗" }
-    }
-  ],
+  "friction_headline_title": "需要關注",
+  "friction_p0_title": "在多個工作階段中失敗的工具",
   "friction_patterns_new": "新模式",
   "friction_patterns_recurring": "反覆出現的模式",
-  "friction_patterns_none": "此摘要中沒有模式。",
   "friction_pattern_occurrences": [
     {
       "declarations": [
@@ -2959,15 +2979,8 @@
   "friction_section_workarounds": "暫時解法",
   "friction_section_deferrals": "延後事項",
   "friction_section_patterns": "模式",
-  "friction_none_corrections": "未偵測到糾正。",
-  "friction_none_errors": "未偵測到錯誤。",
-  "friction_none_workarounds": "未偵測到暫時解法。",
-  "friction_none_deferrals": "未偵測到延後事項。",
-  "friction_none_patterns": "未偵測到模式。",
   "friction_section_frustration": "挫折",
   "friction_section_interruptions": "中斷",
-  "friction_none_frustration": "未偵測到挫折。",
-  "friction_none_interruptions": "未偵測到中斷。",
   "friction_interruption_count": [
     {
       "declarations": [

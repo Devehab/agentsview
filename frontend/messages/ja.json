@@ -2944,7 +2944,6 @@
   "appearance_message_colors_preview_user": "日付のテストはなぜ失敗するのですか？",
   "appearance_message_colors_preview_assistant": "フィクスチャが UTC を前提にしていたので更新しました。",
   "nav_friction": "フリクションログ",
-  "friction_page_help_intro": "すべての検出結果は保存済みセッションから計算した決定的なヒューリスティックであり、正解そのものではありません。何をフリクションとみなすかをモデルが決めることはありません。",
   "friction_page_help_docs": "フリクションログの仕組み",
   "friction_page_refresh": "フリクションログを更新",
   "friction_date_label": "ダイジェストの日付",
@@ -2972,8 +2971,43 @@
   "friction_load_error": "フリクションログを読み込めませんでした",
   "friction_retry": "再試行",
   "friction_digest_heading": "フリクションログ — {date}",
+  "friction_digest_built": "{when} に作成（{timezone}）",
+  "friction_p0_failed": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local countNumber = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=other": "{countNumber} 件のセッションで失敗"
+      }
+    }
+  ],
+  "friction_clean_title": "フリクションは見つかりませんでした",
+  "friction_clean_hint": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural",
+        "local countNumber = count: number"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=other": "スキャンした {countNumber} 件のセッションで検出された項目はありません。"
+      }
+    }
+  ],
+  "friction_clean_no_sessions": "この日にアクティブなセッションはありませんでした。",
+  "friction_deferral_said": "作業を後回し：「{phrase}」",
+  "friction_pattern_retry_loop": "再試行ループ",
+  "friction_pattern_runaway_loop": "暴走したツールループ",
+  "friction_pattern_edit_churn": "繰り返しの編集",
+  "friction_pattern_mid_task_compaction": "タスク途中のコンテキスト圧縮",
+  "friction_pattern_context_pressure": "コンテキストの逼迫",
+  "friction_pattern_iteration_runaway": "ユーザー入力のない長時間実行",
   "friction_digest_missing": "{date} のダイジェストはありません。",
-  "friction_digest_meta": "{timezone} · リビジョン {revision}",
   "friction_scanned": [
     {
       "declarations": [
@@ -2985,24 +3019,10 @@
       "match": { "countPlural=other": "{countNumber} 件のセッションをスキャン" }
     }
   ],
-  "friction_headline_title": "ハイライト",
-  "friction_p0_title": "P0 アラート",
-  "friction_p0_none": "P0 アラートはありません。",
-  "friction_p0_item": [
-    {
-      "declarations": [
-        "input count",
-        "input tool",
-        "local countPlural = count: plural",
-        "local countNumber = count: number"
-      ],
-      "selectors": ["countPlural"],
-      "match": { "countPlural=other": "{tool} が {countNumber} 件の異なるセッションで失敗しました" }
-    }
-  ],
+  "friction_headline_title": "要確認",
+  "friction_p0_title": "複数のセッションで失敗したツール",
   "friction_patterns_new": "新しいパターン",
   "friction_patterns_recurring": "繰り返し発生しているパターン",
-  "friction_patterns_none": "このダイジェストにパターンはありません。",
   "friction_pattern_occurrences": [
     {
       "declarations": [
@@ -3031,15 +3051,8 @@
   "friction_section_workarounds": "回避策",
   "friction_section_deferrals": "先送り",
   "friction_section_patterns": "パターン",
-  "friction_none_corrections": "修正指示は検出されませんでした。",
-  "friction_none_errors": "エラーは検出されませんでした。",
-  "friction_none_workarounds": "回避策は検出されませんでした。",
-  "friction_none_deferrals": "先送りは検出されませんでした。",
-  "friction_none_patterns": "パターンは検出されませんでした。",
   "friction_section_frustration": "苛立ち",
   "friction_section_interruptions": "中断",
-  "friction_none_frustration": "苛立ちは検出されませんでした。",
-  "friction_none_interruptions": "中断は検出されませんでした。",
   "friction_interruption_count": [
     {
       "declarations": [

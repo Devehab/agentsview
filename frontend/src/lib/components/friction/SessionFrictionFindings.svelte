@@ -11,7 +11,8 @@
   import { m } from "../../i18n/index.js";
   import { ui } from "../../stores/ui.svelte.js";
   import { LatestRead } from "../../utils/latest-read.js";
-  import { findingSummary, type FrictionKind } from "./frictionView.js";
+  import FrictionFinding from "./FrictionFinding.svelte";
+  import type { FrictionKind } from "./frictionView.js";
 
   interface Props {
     sessionId: string;
@@ -94,9 +95,8 @@
       {#each findings as finding}
         <li class="finding-row" data-kind={finding.kind}>
           <span class="kind">{kindLabel(finding.kind)}</span>
-          <code class="detector">{finding.detector}</code>
-          {#if findingSummary(finding)}
-            <span class="finding-text">{findingSummary(finding)}</span>
+          {#if finding.kind !== "interruption"}
+            <span class="finding-text"><FrictionFinding {finding} /></span>
           {/if}
           {#if finding.message_ordinal != null}
             <Button
@@ -157,10 +157,6 @@
   .kind {
     font-weight: 600;
     color: var(--text-secondary);
-  }
-  .detector {
-    color: var(--accent-amber);
-    font-size: 11px;
   }
   .finding-text {
     color: var(--text-secondary);
