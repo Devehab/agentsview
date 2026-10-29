@@ -1880,11 +1880,11 @@ func OpenReadOnly(ctx context.Context, path string) (*DB, error) {
 		)
 	}
 
-	db := &DB{
-		path: path, readOnly: true,
-		usageCache: newUsageCacheManager(path),
+	reader, err := sql.Open(sqliteArchiveDriverName, makeDSN(path, true))
+	if err != nil {
+		return nil, fmt.Errorf("opening read-only reader: %w", err)
 	}
-	reader := db.openReader(path)
+	configureReaderPool(reader)
 	if err := reader.PingContext(ctx); err != nil {
 		reader.Close()
 		return nil, fmt.Errorf("opening read-only reader: %w", err)
@@ -1904,6 +1904,10 @@ func OpenReadOnly(ctx context.Context, path string) (*DB, error) {
 	if schemaStale {
 		reader.Close()
 		return nil, errors.New("opening read-only database: schema is stale or incomplete")
+	}
+	db := &DB{
+		path: path, readOnly: true,
+		usageCache: newUsageCacheManager(path),
 	}
 	db.dataStale.Store(dataStale)
 	db.usageCache.attachArchive(db)
