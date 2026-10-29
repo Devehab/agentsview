@@ -92,4 +92,34 @@ describe("Treemap", () => {
     expect(onSelect.mock.calls).toEqual([["beta"], ["alpha"], ["alpha"]]);
     await unmount(project);
   });
+  it("sizes labels by tile share", async () => {
+    const component = mount(Treemap, {
+      target: document.body,
+      props: {
+        items: [
+          {
+            id: "big",
+            label: "Big",
+            value: 80,
+            style: { color: "#1f77b4", fill: "solid" as const },
+          },
+          {
+            id: "small",
+            label: "Small",
+            value: 20,
+            style: { color: "#ff7f0e", fill: "solid" as const },
+          },
+        ],
+      },
+    });
+    await tick();
+    const sizes = [...document.querySelectorAll<SVGTextElement>(".tile-label")].map((label) =>
+      parseFloat(label.style.fontSize),
+    );
+    expect(sizes).toHaveLength(2);
+    expect(sizes[0]).toBeGreaterThan(sizes[1]!);
+    expect(sizes[1]).toBeGreaterThanOrEqual(11);
+    expect(sizes[0]).toBeLessThanOrEqual(18);
+    unmount(component);
+  });
 });

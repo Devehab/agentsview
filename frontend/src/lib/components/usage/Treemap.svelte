@@ -47,6 +47,18 @@
       .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))
   );
 
+  const total = $derived(root.value ?? 0);
+
+  // Labels on large tiles grow with the tile's share of the total, so the
+  // biggest categories read first. sqrt because tile area already grows
+  // linearly with share. Never below the 11px floor, and never too tall for
+  // the value and meta lines under the label.
+  function labelSize(value: number, tileHeight: number): number {
+    if (total <= 0) return 11;
+    const size = Math.round(28 * Math.sqrt(value / total));
+    return Math.max(11, Math.min(18, size, tileHeight - 28));
+  }
+
   let measuredWidth = $state(0);
   const chartWidth = $derived(measuredWidth > 0 ? measuredWidth : 600);
 
@@ -98,10 +110,11 @@
                   fill={seriesPaint(uid, tile.style)}
                 />
                 {#if large}
-                  <Text value={tile.label} x={6} y={16} width={tileWidth - 12} truncate class="tile-label" />
-                  <Text value={formatValue(tile.value)} x={6} y={30} width={tileWidth - 12} truncate class="tile-value" />
+                  {@const fontSize = labelSize(tile.value, tileHeight)}
+                  <Text value={tile.label} x={6} y={fontSize + 5} width={tileWidth - 12} truncate class="tile-label" style={`font-size: ${fontSize}px`} />
+                  <Text value={formatValue(tile.value)} x={6} y={fontSize + 19} width={tileWidth - 12} truncate class="tile-value" />
                   {#if tile.meta}
-                    <Text value={tile.meta} x={6} y={42} width={tileWidth - 12} truncate class="tile-meta" />
+                    <Text value={tile.meta} x={6} y={fontSize + 31} width={tileWidth - 12} truncate class="tile-meta" />
                   {/if}
                 {:else if medium}
                   <Text value={tile.label} x={4} y={14} width={tileWidth - 8} truncate class="tile-label-sm" />
